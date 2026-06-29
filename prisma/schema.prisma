@@ -102,6 +102,10 @@ model User {
   
   clockIns      ClockIn[]
   auditedLogs   AuditLog[]     @relation("AuditorRelation")
+  
+  // Horas contratadas
+  dailyContractedHours    Float          @default(8.0)
+  monthlyContractedHours  Float          @default(160.0)
 }
 
 model ClockIn {

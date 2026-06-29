@@ -44,6 +44,8 @@ export async function saveEmployee(data: {
   isActive: boolean;
   departmentId?: string;
   workCenterId?: string;
+  dailyContractedHours?: number;
+  monthlyContractedHours?: number;
 }) {
   const admin = await checkAdmin();
 
@@ -57,6 +59,8 @@ export async function saveEmployee(data: {
     companyId: admin.companyId,
     departmentId: data.departmentId || null,
     workCenterId: data.workCenterId || null,
+    dailyContractedHours: data.dailyContractedHours !== undefined ? data.dailyContractedHours : 8.0,
+    monthlyContractedHours: data.monthlyContractedHours !== undefined ? data.monthlyContractedHours : 160.0,
   };
 
   if (data.id) {

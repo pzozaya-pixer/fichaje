@@ -17,6 +17,8 @@ interface Employee {
   workCenterId: string;
   departmentName: string;
   workCenterName: string;
+  dailyContractedHours: number;
+  monthlyContractedHours: number;
 }
 
 interface EmployeesClientProps {
@@ -46,6 +48,8 @@ export default function EmployeesClient({
   const [isActive, setIsActive] = useState(true);
   const [departmentId, setDepartmentId] = useState('');
   const [workCenterId, setWorkCenterId] = useState('');
+  const [dailyContractedHours, setDailyContractedHours] = useState<number | string>(8.0);
+  const [monthlyContractedHours, setMonthlyContractedHours] = useState<number | string>(160.0);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -61,6 +65,8 @@ export default function EmployeesClient({
     setIsActive(true);
     setDepartmentId(departments[0]?.id || '');
     setWorkCenterId(workCenters[0]?.id || '');
+    setDailyContractedHours(8.0);
+    setMonthlyContractedHours(160.0);
     setError('');
     setIsModalOpen(true);
   };
@@ -76,6 +82,8 @@ export default function EmployeesClient({
     setIsActive(emp.isActive);
     setDepartmentId(emp.departmentId);
     setWorkCenterId(emp.workCenterId);
+    setDailyContractedHours(emp.dailyContractedHours);
+    setMonthlyContractedHours(emp.monthlyContractedHours);
     setError('');
     setIsModalOpen(true);
   };
@@ -102,6 +110,8 @@ export default function EmployeesClient({
         isActive,
         departmentId: departmentId || undefined,
         workCenterId: workCenterId || undefined,
+        dailyContractedHours: parseFloat(dailyContractedHours as any),
+        monthlyContractedHours: parseFloat(monthlyContractedHours as any),
       });
 
       // Recargar localmente (en una app real revalidatePath hace esto, pero actualizamos el estado para feedback inmediato)
@@ -158,6 +168,8 @@ export default function EmployeesClient({
               <th>Empleado</th>
               <th>Departamento</th>
               <th>Contrato</th>
+              <th style={{ textAlign: 'center' }}>H. Diarias</th>
+              <th style={{ textAlign: 'center' }}>H. Mensuales</th>
               <th>Centro de Trabajo</th>
               <th>Rol</th>
               <th>Estado</th>
@@ -179,6 +191,8 @@ export default function EmployeesClient({
                     {emp.contractType.toLowerCase()}
                   </span>
                 </td>
+                <td style={{ textAlign: 'center', fontWeight: 600 }}>{emp.dailyContractedHours}h</td>
+                <td style={{ textAlign: 'center', fontWeight: 600 }}>{emp.monthlyContractedHours}h</td>
                 <td>{emp.workCenterName}</td>
                 <td>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 500 }}>
@@ -321,6 +335,38 @@ export default function EmployeesClient({
                     <option value="true">Activa (Puede fichar)</option>
                     <option value="false">Inactiva (Acceso bloqueado)</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Horas Contratadas */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Horas Diarias Contratadas *</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    max="24"
+                    required
+                    className="form-input"
+                    value={dailyContractedHours}
+                    onChange={(e) => setDailyContractedHours(e.target.value)}
+                    placeholder="Ej. 8"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Horas Mensuales Contratadas *</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    max="744"
+                    required
+                    className="form-input"
+                    value={monthlyContractedHours}
+                    onChange={(e) => setMonthlyContractedHours(e.target.value)}
+                    placeholder="Ej. 160"
+                  />
                 </div>
               </div>
 

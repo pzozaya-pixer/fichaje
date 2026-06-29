@@ -29,6 +29,8 @@ export default async function EmployeesPage() {
         workCenterId: e.workCenterId || '',
         departmentName: e.department?.name || 'Sin asignar',
         workCenterName: e.workCenter?.name || 'Sin asignar',
+        dailyContractedHours: e.dailyContractedHours,
+        monthlyContractedHours: e.monthlyContractedHours,
       }))}
       departments={departments}
       workCenters={workCenters}
