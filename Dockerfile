@@ -56,4 +56,4 @@ ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
 # Ejecutar migraciones automáticamente y arrancar la aplicación
-CMD ["sh", "-c", "npx prisma@6.2.1 db push && node server.js"]
+CMD ["sh", "-c", "npx prisma@6.2.1 db push --skip-generate && node server.js"]
