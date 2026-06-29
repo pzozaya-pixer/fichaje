@@ -14,7 +14,8 @@ import {
   Settings,
   LogOut,
   User as UserIcon,
-  ShieldAlert
+  ShieldAlert,
+  Receipt
 } from 'lucide-react';
 
 export default async function DashboardLayout({
@@ -76,10 +77,17 @@ export default async function DashboardLayout({
           </SidebarLink>
           
           {user.role === 'ADMIN' && (
-            <SidebarLink href="/dashboard/config">
-              <Settings size={18} />
-              <span>Configuración</span>
-            </SidebarLink>
+            <>
+              <SidebarLink href="/dashboard/billing">
+                <Receipt size={18} />
+                <span>Facturación</span>
+              </SidebarLink>
+              
+              <SidebarLink href="/dashboard/config">
+                <Settings size={18} />
+                <span>Configuración</span>
+              </SidebarLink>
+            </>
           )}
         </nav>
 
