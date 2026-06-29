@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { saveWorkCenter, deleteWorkCenter, saveDepartment } from '@/app/actions/admin';
+import {
+  saveWorkCenter,
+  deleteWorkCenter,
+  saveDepartment,
+  requestCompanyDeletionOtp,
+  confirmCompanyDeletion
+} from '@/app/actions/admin';
 import { subscribeAction, openBillingPortalAction } from '@/app/actions/stripe';
 import {
   MapPin,
@@ -14,7 +20,8 @@ import {
   CheckCircle,
   Loader2,
   AlertTriangle,
-  Info
+  Info,
+  X
 } from 'lucide-react';
 
 interface WorkCenter {
@@ -60,6 +67,62 @@ export default function ConfigClient({
   
   // Mensajes de Stripe Checkout
   const [stripeStatus, setStripeStatus] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' });
+
+  // Estados para baja de empresa
+  const [isDeletionModalOpen, setIsDeletionModalOpen] = useState(false);
+  const [deletionOtp, setDeletionOtp] = useState('');
+  const [deletionLoading, setDeletionLoading] = useState(false);
+  const [deletionError, setDeletionError] = useState('');
+  const [deletionMessage, setDeletionMessage] = useState('');
+
+  const handleRequestDeletion = async () => {
+    if (!confirm('¿Estás seguro de que deseas iniciar el proceso de baja? Se borrarán permanentemente la empresa, todos los empleados y el historial de fichajes de forma irreversible.')) {
+      return;
+    }
+
+    setDeletionLoading(true);
+    setDeletionError('');
+    setDeletionMessage('');
+
+    try {
+      const res = await requestCompanyDeletionOtp();
+      if (res.success) {
+        setDeletionMessage(res.message);
+        setIsDeletionModalOpen(true);
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert('Error al solicitar el código de baja.');
+    } finally {
+      setDeletionLoading(false);
+    }
+  };
+
+  const handleConfirmDeletion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deletionOtp || deletionOtp.length < 6) {
+      setDeletionError('Introduce el código de 6 dígitos.');
+      return;
+    }
+
+    setDeletionLoading(true);
+    setDeletionError('');
+
+    try {
+      const res = await confirmCompanyDeletion(deletionOtp);
+      if (res.success) {
+        alert('Empresa dada de baja con éxito. Todos tus datos han sido eliminados.');
+        window.location.href = '/fichaje'; // Redirigir al inicio
+      } else {
+        setDeletionError(res.message || 'Código incorrecto o expirado.');
+      }
+    } catch (err: any) {
+      setDeletionError('Ocurrió un error al procesar la baja de la empresa.');
+    } finally {
+      setDeletionLoading(false);
+    }
+  };
 
   // Formulario de Centro de Trabajo
   const [isCenterFormOpen, setIsCenterFormOpen] = useState(false);
@@ -531,7 +594,108 @@ export default function ConfigClient({
           </div>
         </div>
 
+        {/* ZONA DE PELIGRO: BAJA DE EMPRESA */}
+        <div className="premium-card" style={{ marginTop: '24px', border: '1px solid var(--danger)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ padding: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', color: 'var(--danger)' }}>
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600, color: 'var(--danger)' }}>
+                Zona de Peligro: Dar de baja la empresa
+              </h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                Elimina permanentemente tu cuenta de empresa, todos los empleados y el historial de fichajes de forma irreversible.
+              </p>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+            Al iniciar el proceso de baja, recibirás un código de verificación en tu correo electrónico administrativo para confirmar la eliminación de todos los datos.
+          </p>
+
+          <button
+            onClick={handleRequestDeletion}
+            disabled={deletionLoading}
+            className="btn"
+            style={{
+              backgroundColor: 'var(--danger)',
+              color: 'white',
+              border: 'none',
+              alignSelf: 'flex-start',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: 600
+            }}
+          >
+            {deletionLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+            Solicitar Baja de Empresa
+          </button>
+        </div>
+
       </div>
+
+      {/* MODAL CONFIRMACIÓN DE BAJA */}
+      {isDeletionModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
+          <div className="premium-card" style={{ maxWidth: '420px', width: '100%', backgroundColor: 'white', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '18px', fontFamily: 'var(--font-title)', fontWeight: 700, color: 'var(--danger)' }}>
+                Confirmar Baja de Empresa
+              </h3>
+              <button onClick={() => setIsDeletionModalOpen(false)} style={{ color: 'var(--text-secondary)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '14px', color: '#991b1b', backgroundColor: '#fef2f2', borderLeft: '4px solid #ef4444', padding: '12px', borderRadius: '4px', margin: 0 }}>
+              Introduce el código OTP enviado a tu correo. Al pulsar "Eliminar permanentemente", se borrarán de forma irreversible la empresa y todos sus empleados y fichajes.
+            </p>
+
+            {deletionError && (
+              <div className="pwa-geo-status out-range" style={{ margin: 0 }}>
+                <span>{deletionError}</span>
+              </div>
+            )}
+
+            {deletionMessage && (
+              <div className="pwa-geo-status in-range" style={{ margin: 0, backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#15803d', borderLeft: '4px solid #22c55e' }}>
+                <span>{deletionMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleConfirmDeletion} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Código de Verificación (OTP)</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  required
+                  className="form-input"
+                  placeholder="123456"
+                  value={deletionOtp}
+                  onChange={(e) => setDeletionOtp(e.target.value)}
+                  style={{ textAlign: 'center', fontSize: '24px', letterSpacing: '4px', fontWeight: 700 }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <button type="button" onClick={() => setIsDeletionModalOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={deletionLoading} className="btn" style={{ backgroundColor: 'var(--danger)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: 'var(--radius-md)', fontWeight: 600, cursor: 'pointer' }}>
+                  {deletionLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+                  Eliminar permanentemente
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,9 +1,10 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, generateOTP } from '@/lib/auth';
 import { Role, ContractType } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 
 // Middleware interno para verificar si el usuario es Administrador
 async function checkAdmin() {
@@ -506,4 +507,107 @@ export async function getReportsData() {
     daysWorked: fichajes.length,
     chartData,
   };
+}
+
+export async function requestCompanyDeletionOtp() {
+  const admin = await checkAdmin();
+
+  try {
+    const otp = generateOTP();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+    await prisma.user.update({
+      where: { id: admin.id },
+      data: {
+        otpCode: otp,
+        otpExpiresAt,
+      },
+    });
+
+    // Enviar correo personalizado de baja
+    const transporter = require('nodemailer').createTransport({
+      host: process.env.SMTP_HOST || 'smtp.example.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_PORT === '465',
+      auth: {
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASSWORD || '',
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || 'noreply@example.com',
+      to: admin.email,
+      subject: 'Confirmación de baja de empresa - Fichaje.click',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <h2 style="color: #ef4444; text-align: center;">Confirmación de Baja de Empresa</h2>
+          <p>Hola, <strong>${admin.name}</strong>.</p>
+          <p>Has solicitado dar de baja tu empresa (<strong>${admin.company.name}</strong>) en Fichaje.click.</p>
+          <p style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px; color: #991b1b; font-weight: bold;">
+            ADVERTENCIA: Esta acción eliminará permanentemente la empresa, todos sus centros de trabajo, departamentos, datos de empleados y todo el historial de fichajes de forma irreversible.
+          </p>
+          <p>Para confirmar esta acción, introduce el siguiente código OTP en la aplicación:</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #ef4444; background-color: #f1f5f9; padding: 12px 24px; border-radius: 6px; display: inline-block;">${otp}</span>
+          </div>
+          <p>Este código expirará en 10 minutos.</p>
+          <p>Si no has solicitado esta baja, por favor ignora este correo y ponte en contacto con soporte inmediatamente.</p>
+        </div>
+      `,
+    };
+
+    // Si es una cuenta demo, omitir envío real y loguear
+    if (admin.email.endsWith('@demo.com')) {
+      console.log(`\n--- [BAJA EMPRESA] Código OTP de baja para ${admin.email}: ${otp} ---\n`);
+    } else {
+      await transporter.sendMail(mailOptions);
+    }
+
+    return { success: true, message: 'Código de confirmación enviado a tu correo.' };
+  } catch (error) {
+    console.error('Error al solicitar OTP de baja:', error);
+    return { success: false, message: 'Ocurrió un error al procesar la solicitud.' };
+  }
+}
+
+export async function confirmCompanyDeletion(otpCode: string) {
+  const admin = await checkAdmin();
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: admin.id },
+    });
+
+    if (!user || !user.otpCode || !user.otpExpiresAt) {
+      return { success: false, message: 'Código no solicitado.' };
+    }
+
+    if (new Date() > user.otpExpiresAt) {
+      return { success: false, message: 'El código ha expirado.' };
+    }
+
+    if (user.otpCode !== otpCode) {
+      return { success: false, message: 'Código incorrecto.' };
+    }
+
+    const companyId = admin.companyId;
+
+    // Eliminar la empresa (esto desencadena el borrado en cascada de todos los datos!)
+    await prisma.company.delete({
+      where: { id: companyId },
+    });
+
+    // Eliminar la cookie de sesión
+    const cookieStore = await cookies();
+    cookieStore.delete('auth_session');
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error al confirmar baja de empresa:', error);
+    return { success: false, message: 'Ocurrió un error al procesar la baja de la empresa.' };
+  }
 }
