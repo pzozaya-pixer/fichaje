@@ -9,6 +9,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASSWORD || '',
   },
+  tls: {
+    rejectUnauthorized: false, // Permitir certificados SSL autofirmados o de desarrollo
+  },
 });
 
 export async function sendOTPEmail(email: string, name: string, otp: string) {
