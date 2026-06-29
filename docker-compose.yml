@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3005:3000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/fichaje?schema=public
       - JWT_SECRET=cambia_este_secreto_en_produccion_123456789
