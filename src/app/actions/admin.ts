@@ -5,6 +5,7 @@ import { getCurrentUser, generateOTP } from '@/lib/auth';
 import { Role, ContractType } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { stripe } from '@/lib/stripe';
 
 // Middleware interno para verificar si el usuario es Administrador
 async function checkAdmin() {
@@ -595,6 +596,20 @@ export async function confirmCompanyDeletion(otpCode: string) {
     }
 
     const companyId = admin.companyId;
+
+    // Si la empresa tiene una suscripción de Stripe activa, cancelarla
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
+
+    if (company && company.stripeSubscriptionId) {
+      try {
+        await stripe.subscriptions.cancel(company.stripeSubscriptionId);
+        console.log(`[STRIPE] Suscripción ${company.stripeSubscriptionId} cancelada con éxito al dar de baja la empresa ${companyId}`);
+      } catch (stripeError) {
+        console.error('[STRIPE] Error al cancelar la suscripción durante la baja:', stripeError);
+      }
+    }
 
     // Eliminar la empresa (esto desencadena el borrado en cascada de todos los datos!)
     await prisma.company.delete({

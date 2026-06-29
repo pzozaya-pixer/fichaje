@@ -9,7 +9,7 @@ import {
   requestCompanyDeletionOtp,
   confirmCompanyDeletion
 } from '@/app/actions/admin';
-import { subscribeAction, openBillingPortalAction } from '@/app/actions/stripe';
+import { subscribeAction, openBillingPortalAction, cancelSubscriptionAction } from '@/app/actions/stripe';
 import {
   MapPin,
   Building,
@@ -257,6 +257,27 @@ export default function ConfigClient({
     }
   };
 
+  const handleCancelSubscription = async () => {
+    if (!confirm('¿Estás seguro de que deseas cancelar tu suscripción activa en Stripe? Tu cuenta y datos seguirán estando disponibles, pero la suscripción se cancelará inmediatamente.')) {
+      return;
+    }
+
+    setStripeLoading(true);
+    try {
+      const res = await cancelSubscriptionAction();
+      if (res.success) {
+        alert(res.message || 'Suscripción cancelada correctamente.');
+        window.location.reload();
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert('Ocurrió un error al intentar cancelar la suscripción.');
+    } finally {
+      setStripeLoading(false);
+    }
+  };
+
   // Renderizar información de suscripción
   const isTrialActive = new Date(subscription.trialEndsAt) > new Date();
   const trialDaysRemaining = Math.max(
@@ -365,15 +386,37 @@ export default function ConfigClient({
                 <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
                   Tu suscripción está gestionada a través de Stripe. Puedes ver tus facturas anteriores, actualizar tu tarjeta de crédito o cancelar la suscripción accediendo al portal de clientes de Stripe.
                 </p>
-                <button
-                  disabled={stripeLoading}
-                  onClick={handleOpenBilling}
-                  className="btn btn-secondary"
-                  style={{ display: 'inline-flex', alignSelf: 'flex-start' }}
-                >
-                  {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
-                  Gestionar Suscripción y Facturas
-                </button>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <button
+                    disabled={stripeLoading}
+                    onClick={handleOpenBilling}
+                    className="btn btn-secondary"
+                    style={{ display: 'inline-flex', alignSelf: 'flex-start' }}
+                  >
+                    {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+                    Gestionar Suscripción y Facturas
+                  </button>
+
+                  <button
+                    disabled={stripeLoading}
+                    onClick={handleCancelSubscription}
+                    className="btn"
+                    style={{
+                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                      color: 'var(--danger)',
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                      display: 'inline-flex',
+                      alignSelf: 'flex-start',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: '10px 16px',
+                      borderRadius: 'var(--radius-md)',
+                    }}
+                  >
+                    {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+                    Cancelar Suscripción
+                  </button>
+                </div>
               </div>
             )}
           </div>
