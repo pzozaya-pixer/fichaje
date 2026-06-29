@@ -1,5 +1,3 @@
-'use server';
-
 import React from 'react';
 export const dynamic = 'force-dynamic';
 import { getEmployees, getDepartments, getWorkCenters, getReportsData } from '@/app/actions/admin';
