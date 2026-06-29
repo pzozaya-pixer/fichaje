@@ -557,10 +557,9 @@ export default function PWAClient({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {!todayStatus.hasClockedIn || !todayStatus.isActive ? (
                 <button
-                  disabled={actionLoading || checkingGps || !isWithinGeofence}
+                  disabled={actionLoading || checkingGps}
                   onClick={triggerClockIn}
                   className="pwa-clock-btn clock-in"
-                  style={{ opacity: !isWithinGeofence ? 0.5 : 1 }}
                 >
                   <Play size={20} fill="white" />
                   Fichar Entrada
@@ -568,10 +567,9 @@ export default function PWAClient({
               ) : (
                 <>
                   <button
-                    disabled={actionLoading || checkingGps || !isWithinGeofence}
+                    disabled={actionLoading || checkingGps}
                     onClick={triggerClockOut}
                     className="pwa-clock-btn clock-out"
-                    style={{ opacity: !isWithinGeofence ? 0.5 : 1 }}
                   >
                     <Square size={20} fill="white" />
                     Fichar Salida
