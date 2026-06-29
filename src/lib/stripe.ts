@@ -22,10 +22,21 @@ export async function createCheckoutSession(
     throw new Error('Empresa no encontrada');
   }
 
-  // Determinar el ID de producto de Stripe y los precios
+  // Determinar el ID de producto de Stripe
   const productId = plan === 'annual' ? 'prod_Un91TCtSLN7pzx' : 'prod_Un8zZdgvmqcuay';
-  const unitAmount = plan === 'annual' ? 29000 : 2900; // 290.00€ al año o 29.00€ al mes
-  const interval = plan === 'annual' ? 'year' : 'month';
+
+  // Obtener el precio activo del producto en Stripe para usar el precio configurado en tu dashboard
+  const prices = await stripe.prices.list({
+    product: productId,
+    active: true,
+    limit: 1,
+  });
+
+  if (!prices.data || prices.data.length === 0) {
+    throw new Error(`No se encontró un precio activo en Stripe para el producto ${productId}`);
+  }
+
+  const priceId = prices.data[0].id;
 
   // Determinar si aplica el trial de 15 días
   const now = new Date();
@@ -53,12 +64,7 @@ export async function createCheckoutSession(
     payment_method_types: ['card'],
     line_items: [
       {
-        price_data: {
-          currency: 'eur',
-          product: productId,
-          unit_amount: unitAmount,
-          recurring: { interval: interval as any },
-        },
+        price: priceId,
         quantity: 1,
       },
     ],
