@@ -2,7 +2,7 @@
   "name": "Fichaje.click - Control Horario",
   "short_name": "Fichaje.click",
   "description": "Sistema de control horario de jornada laboral y geolocalización de empleados.",
-  "start_url": "/pwa",
+  "start_url": "/fichaje/pwa",
   "display": "standalone",
   "background_color": "#050b18",
   "theme_color": "#0a1128",

@@ -1,7 +1,7 @@
 const CACHE_NAME = 'fichaje-cache-v1';
 const urlsToCache = [
-  '/pwa',
-  '/manifest.json'
+  '/fichaje/pwa',
+  '/fichaje/manifest.json'
 ];
 
 // Instalar el Service Worker y cachear recursos estáticos
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (event) => {
       
       return fetch(event.request).catch(() => {
         // Fallback cuando no hay red (offline)
-        return caches.match('/pwa');
+        return caches.match('/fichaje/pwa');
       });
     })
   );
