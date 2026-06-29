@@ -8,7 +8,9 @@ import {
   saveDepartment,
   requestCompanyDeletionOtp,
   confirmCompanyDeletion,
-  updateCompanyBillingInfo
+  updateCompanyBillingInfo,
+  downloadBackupAction,
+  updateCompanyBackupSettingsAction
 } from '@/app/actions/admin';
 import { subscribeAction, openBillingPortalAction, cancelSubscriptionAction } from '@/app/actions/stripe';
 import {
@@ -22,7 +24,9 @@ import {
   Loader2,
   AlertTriangle,
   Info,
-  X
+  X,
+  Database,
+  Download
 } from 'lucide-react';
 
 interface WorkCenter {
@@ -55,6 +59,9 @@ interface ConfigClientProps {
     city: string;
     province: string;
     postalCode: string;
+    backupActive: boolean;
+    backupFrequency: string;
+    backupEmail: string;
   };
   companyId: string;
   companyEmail: string;
@@ -144,6 +151,59 @@ export default function ConfigClient({
   const [billingPostalCode, setBillingPostalCode] = useState(company.postalCode);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingSuccess, setBillingSuccess] = useState('');
+
+  // Estados para copias de seguridad
+  const [backupActive, setBackupActive] = useState(company.backupActive);
+  const [backupFrequency, setBackupFrequency] = useState(company.backupFrequency);
+  const [backupEmail, setBackupEmail] = useState(company.backupEmail || companyEmail);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupSuccess, setBackupSuccess] = useState('');
+
+  const handleSaveBackupSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBackupLoading(true);
+    setBackupSuccess('');
+
+    try {
+      const res = await updateCompanyBackupSettingsAction({
+        active: backupActive,
+        frequency: backupFrequency,
+        email: backupEmail,
+      });
+
+      if (res.success) {
+        setBackupSuccess(res.message);
+        setTimeout(() => setBackupSuccess(''), 4000);
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert('Error al guardar la configuración de copia de seguridad.');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    try {
+      const res = await downloadBackupAction();
+      if (res.success && res.backupJson && res.filename) {
+        const blob = new Blob([res.backupJson], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = res.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        alert(res.message || 'No se pudo descargar la copia de seguridad.');
+      }
+    } catch (err) {
+      alert('Error al descargar la copia de seguridad.');
+    }
+  };
 
   const handleSaveBillingInfo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -572,6 +632,75 @@ export default function ConfigClient({
             >
               {billingLoading ? <Loader2 className="animate-spin" size={16} /> : null}
               Guardar Datos de Facturación
+            </button>
+          </form>
+        </div>
+
+        {/* COPIAS DE SEGURIDAD Y BACKUP DE DATOS */}
+        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Database size={20} style={{ color: 'var(--primary)' }} />
+              <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Copia de Seguridad y Backup de Datos</h3>
+            </div>
+            <button
+              onClick={handleDownloadBackup}
+              className="btn btn-secondary"
+              style={{ padding: '6px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Download size={14} />
+              Descargar Backup Completo (JSON)
+            </button>
+          </div>
+
+          {backupSuccess && (
+            <div className="pwa-geo-status in-range" style={{ margin: 0, backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#15803d', borderLeft: '4px solid #22c55e' }}>
+              <span>{backupSuccess}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveBackupSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+              Configura el envío automático de copias de seguridad de todos tus datos (empleados, fichajes y registros) por correo electrónico.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', alignItems: 'end' }}>
+              <div className="form-group">
+                <label className="form-label">Envío Automático</label>
+                <select className="form-select" value={backupActive ? 'true' : 'false'} onChange={(e) => setBackupActive(e.target.value === 'true')}>
+                  <option value="false">Desactivado</option>
+                  <option value="true">Activo</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Frecuencia</label>
+                <select className="form-select" value={backupFrequency} onChange={(e) => setBackupFrequency(e.target.value)} disabled={!backupActive}>
+                  <option value="weekly">Semanal</option>
+                  <option value="monthly">Mensual</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Correo de Destino</label>
+                <input
+                  type="email"
+                  required
+                  className="form-input"
+                  value={backupEmail}
+                  onChange={(e) => setBackupEmail(e.target.value)}
+                  disabled={!backupActive}
+                  placeholder="ejemplo@empresa.com"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={backupLoading}
+              className="btn btn-primary"
+              style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              {backupLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+              Guardar Configuración de Backup
             </button>
           </form>
         </div>

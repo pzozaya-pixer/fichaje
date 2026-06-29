@@ -78,6 +78,11 @@ export default async function DashboardLayout({
           
           {user.role === 'ADMIN' && (
             <>
+              <SidebarLink href="/dashboard/audit">
+                <ShieldAlert size={18} />
+                <span>Registro de Cambios</span>
+              </SidebarLink>
+
               <SidebarLink href="/dashboard/billing">
                 <Receipt size={18} />
                 <span>Facturación</span>

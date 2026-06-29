@@ -49,6 +49,11 @@ model Company {
   workCenters          WorkCenter[]
   departments          Department[]
   workdays             WorkdaySetting[]
+  
+  // Copias de seguridad automáticas
+  backupActive         Boolean           @default(false)
+  backupFrequency      String            @default("monthly") // weekly, monthly
+  backupEmail          String?
 }
 
 model WorkCenter {

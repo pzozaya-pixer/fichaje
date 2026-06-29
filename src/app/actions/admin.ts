@@ -696,3 +696,96 @@ export async function updateCompanyBillingInfo(data: {
     return { success: false, message: error.message || 'Error al actualizar los datos.' };
   }
 }
+
+export async function downloadBackupAction() {
+  const admin = await checkAdmin();
+
+  try {
+    const company = await prisma.company.findUnique({
+      where: { id: admin.companyId },
+      include: {
+        workCenters: true,
+        departments: true,
+        workdays: true,
+        users: {
+          include: {
+            clockIns: {
+              include: {
+                auditLogs: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!company) {
+      return { success: false, message: 'Empresa no encontrada.' };
+    }
+
+    const backupData = {
+      exportedAt: new Date().toISOString(),
+      company: {
+        id: company.id,
+        name: company.name,
+        cif: company.cif,
+        address: company.address,
+        city: company.city,
+        province: company.province,
+        postalCode: company.postalCode,
+        backupActive: company.backupActive,
+        backupFrequency: company.backupFrequency,
+        backupEmail: company.backupEmail,
+      },
+      workCenters: company.workCenters,
+      departments: company.departments,
+      workdaySettings: company.workdays,
+      employees: company.users.map((u) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        phone: u.phone,
+        role: u.role,
+        contractType: u.contractType,
+        isActive: u.isActive,
+        dailyContractedHours: u.dailyContractedHours,
+        monthlyContractedHours: u.monthlyContractedHours,
+        clockIns: u.clockIns,
+      })),
+    };
+
+    return {
+      success: true,
+      backupJson: JSON.stringify(backupData, null, 2),
+      filename: `backup_fichaje_${company.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`,
+    };
+  } catch (error: any) {
+    console.error('Error al generar backup:', error);
+    return { success: false, message: error.message || 'Error al generar la copia de seguridad.' };
+  }
+}
+
+export async function updateCompanyBackupSettingsAction(data: {
+  active: boolean;
+  frequency: string;
+  email: string;
+}) {
+  const admin = await checkAdmin();
+
+  try {
+    await prisma.company.update({
+      where: { id: admin.companyId },
+      data: {
+        backupActive: data.active,
+        backupFrequency: data.frequency,
+        backupEmail: data.email.trim() || null,
+      },
+    });
+
+    revalidatePath('/dashboard/config');
+    return { success: true, message: 'Configuración de copia de seguridad guardada correctamente.' };
+  } catch (error: any) {
+    console.error('Error al guardar configuración de backup:', error);
+    return { success: false, message: error.message || 'Error al guardar la configuración.' };
+  }
+}

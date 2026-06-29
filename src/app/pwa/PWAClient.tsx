@@ -87,10 +87,7 @@ export default function PWAClient({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date>(new Date());
 
-  // Efecto para verificar GPS
-  useEffect(() => {
-    checkGpsLocation();
-  }, [user.workCenter]);
+
 
   // Efecto para el reloj en tiempo real
   useEffect(() => {
@@ -168,70 +165,163 @@ export default function PWAClient({
 
   // Acciones de fichaje
   const triggerClockIn = async () => {
-    if (!coords) {
-      setActionMessage({ type: 'error', text: 'Esperando ubicación GPS...' });
-      return;
-    }
-
+    setCheckingGps(true);
     setActionLoading(true);
     setActionMessage({ type: '', text: '' });
 
-    try {
-      const res = await clockInAction(coords.lat, coords.lng);
-      if (res.success) {
-        setActionMessage({ type: 'success', text: res.message });
-        await refreshData();
-      } else {
-        setActionMessage({ type: 'error', text: res.message });
-      }
-    } catch (err) {
-      setActionMessage({ type: 'error', text: 'Error al fichar.' });
-    } finally {
+    if (!navigator.geolocation) {
+      setActionMessage({ type: 'error', text: 'La geolocalización no es compatible con este dispositivo.' });
       setActionLoading(false);
+      setCheckingGps(false);
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setCoords({ lat, lng });
+
+        // Calcular distancia localmente para actualizar la UI antes de recargar
+        if (user.workCenter) {
+          const dist = getDistance(lat, lng, user.workCenter.latitude, user.workCenter.longitude);
+          setDistance(Math.round(dist));
+          setIsWithinGeofence(dist <= user.workCenter.radius);
+        }
+
+        try {
+          const res = await clockInAction(lat, lng);
+          if (res.success) {
+            setActionMessage({ type: 'success', text: res.message });
+            await refreshData();
+          } else {
+            setActionMessage({ type: 'error', text: res.message });
+          }
+        } catch (err) {
+          setActionMessage({ type: 'error', text: 'Error al registrar el fichaje.' });
+        } finally {
+          setActionLoading(false);
+          setCheckingGps(false);
+        }
+      },
+      (error) => {
+        console.error(error);
+        setActionLoading(false);
+        setCheckingGps(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setActionMessage({ type: 'error', text: 'Permiso de GPS denegado. Actívalo para poder fichar.' });
+        } else {
+          setActionMessage({ type: 'error', text: 'No se pudo obtener la ubicación GPS para fichar.' });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const triggerClockOut = async () => {
-    if (!coords) {
-      setActionMessage({ type: 'error', text: 'Esperando ubicación GPS...' });
+    setCheckingGps(true);
+    setActionLoading(true);
+    setActionMessage({ type: '', text: '' });
+
+    if (!navigator.geolocation) {
+      setActionMessage({ type: 'error', text: 'La geolocalización no es compatible con este dispositivo.' });
+      setActionLoading(false);
+      setCheckingGps(false);
       return;
     }
 
-    setActionLoading(true);
-    setActionMessage({ type: '', text: '' });
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setCoords({ lat, lng });
 
-    try {
-      const res = await clockOutAction(coords.lat, coords.lng);
-      if (res.success) {
-        setActionMessage({ type: 'success', text: res.message });
-        await refreshData();
-      } else {
-        setActionMessage({ type: 'error', text: res.message });
-      }
-    } catch (err) {
-      setActionMessage({ type: 'error', text: 'Error al fichar la salida.' });
-    } finally {
-      setActionLoading(false);
-    }
+        if (user.workCenter) {
+          const dist = getDistance(lat, lng, user.workCenter.latitude, user.workCenter.longitude);
+          setDistance(Math.round(dist));
+          setIsWithinGeofence(dist <= user.workCenter.radius);
+        }
+
+        try {
+          const res = await clockOutAction(lat, lng);
+          if (res.success) {
+            setActionMessage({ type: 'success', text: res.message });
+            await refreshData();
+          } else {
+            setActionMessage({ type: 'error', text: res.message });
+          }
+        } catch (err) {
+          setActionMessage({ type: 'error', text: 'Error al registrar la salida.' });
+        } finally {
+          setActionLoading(false);
+          setCheckingGps(false);
+        }
+      },
+      (error) => {
+        console.error(error);
+        setActionLoading(false);
+        setCheckingGps(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setActionMessage({ type: 'error', text: 'Permiso de GPS denegado. Actívalo para poder registrar la salida.' });
+        } else {
+          setActionMessage({ type: 'error', text: 'No se pudo obtener la ubicación GPS para registrar la salida.' });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const triggerBreakToggle = async () => {
+    setCheckingGps(true);
     setActionLoading(true);
     setActionMessage({ type: '', text: '' });
 
-    try {
-      const res = todayStatus.isOnBreak ? await endBreakAction() : await startBreakAction();
-      if (res.success) {
-        setActionMessage({ type: 'success', text: res.message });
-        await refreshData();
-      } else {
-        setActionMessage({ type: 'error', text: res.message });
-      }
-    } catch (err) {
-      setActionMessage({ type: 'error', text: 'Error en la pausa.' });
-    } finally {
+    if (!navigator.geolocation) {
+      setActionMessage({ type: 'error', text: 'La geolocalización no es compatible con este dispositivo.' });
       setActionLoading(false);
+      setCheckingGps(false);
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setCoords({ lat, lng });
+
+        if (user.workCenter) {
+          const dist = getDistance(lat, lng, user.workCenter.latitude, user.workCenter.longitude);
+          setDistance(Math.round(dist));
+          setIsWithinGeofence(dist <= user.workCenter.radius);
+        }
+
+        try {
+          const res = todayStatus.isOnBreak ? await endBreakAction() : await startBreakAction();
+          if (res.success) {
+            setActionMessage({ type: 'success', text: res.message });
+            await refreshData();
+          } else {
+            setActionMessage({ type: 'error', text: res.message });
+          }
+        } catch (err) {
+          setActionMessage({ type: 'error', text: 'Error en la pausa.' });
+        } finally {
+          setActionLoading(false);
+          setCheckingGps(false);
+        }
+      },
+      (error) => {
+        console.error(error);
+        setActionLoading(false);
+        setCheckingGps(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setActionMessage({ type: 'error', text: 'Permiso de GPS denegado. Actívalo para registrar la pausa.' });
+        } else {
+          setActionMessage({ type: 'error', text: 'No se pudo obtener la ubicación GPS para la pausa.' });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   // Actualizar datos de la vista
@@ -424,7 +514,12 @@ export default function PWAClient({
 
               {user.workCenter ? (
                 <>
-                  {checkingGps ? (
+                  {coords === null && !checkingGps ? (
+                    <div className="pwa-geo-status in-range" style={{ margin: 0, backgroundColor: 'rgba(59, 130, 246, 0.08)', color: '#2563eb', borderLeft: '4px solid #3b82f6', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <MapPin size={18} style={{ color: '#2563eb' }} />
+                      <span style={{ fontSize: '13px' }}>Ubicación GPS: Se validará al fichar</span>
+                    </div>
+                  ) : checkingGps ? (
                     <p style={{ fontSize: '13px', color: 'var(--pwa-text-secondary)' }}>
                       Obteniendo señal GPS...
                     </p>

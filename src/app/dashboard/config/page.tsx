@@ -74,6 +74,9 @@ export default async function ConfigPage() {
         city: user.company.city || '',
         province: user.company.province || '',
         postalCode: user.company.postalCode || '',
+        backupActive: user.company.backupActive,
+        backupFrequency: user.company.backupFrequency,
+        backupEmail: user.company.backupEmail || '',
       }}
       companyId={user.companyId}
       companyEmail={user.email}
