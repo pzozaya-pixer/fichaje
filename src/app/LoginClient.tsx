@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { requestOtpAction, verifyOtpAction, registerCompanyAction } from './actions/auth';
 import { Clock, Mail, ShieldAlert, Loader2, Building, User, Phone } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginClient() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -55,13 +57,22 @@ export default function LoginClient() {
     try {
       const res = await requestOtpAction(null, new FormData(e.target as HTMLFormElement));
       if (res.success) {
-        setStep(2);
-        setMessage('Te hemos enviado un código de acceso a tu correo.');
+        if (res.immediate) {
+          // Redirigir inmediatamente según el rol del usuario
+          if (res.role === 'ADMIN' || res.role === 'CONSULTANT') {
+            router.push('/dashboard');
+          } else {
+            router.push('/pwa');
+          }
+        } else {
+          setStep(2);
+          setMessage('Te hemos enviado un código de acceso a tu correo.');
+        }
       } else {
-        setError(res.message);
+        setError(res.message || 'Error al iniciar sesión.');
       }
     } catch (err) {
-      setError('Ocurrió un error al enviar el correo. Inténtalo de nuevo.');
+      setError('Ocurrió un error al iniciar sesión. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }

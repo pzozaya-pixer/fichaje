@@ -1,17 +1,27 @@
 'use server';
 
-import { sendOTP, verifyOTP, logout } from '@/lib/auth';
+import { sendOTP, verifyOTP, logout, loginWithoutOTP } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
-export async function requestOtpAction(prevState: any, formData: FormData) {
+export async function requestOtpAction(prevState: any, formData: FormData): Promise<{
+  success: boolean;
+  message?: string;
+  immediate?: boolean;
+  role?: string;
+}> {
   const email = formData.get('email') as string;
 
   if (!email) {
     return { success: false, message: 'El correo electrónico es obligatorio.' };
   }
 
-  const result = await sendOTP(email);
+  // Intentar iniciar sesión inmediatamente sin OTP para usuarios registrados
+  const result = await loginWithoutOTP(email);
+  if (result.success) {
+    return { success: true, immediate: true, role: result.role };
+  }
+
   return result;
 }
 

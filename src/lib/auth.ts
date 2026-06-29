@@ -172,3 +172,44 @@ export async function logout() {
   cookieStore.delete(COOKIE_NAME);
   return { success: true };
 }
+
+// Inicia sesión de manera inmediata sin requerir código OTP (para usuarios existentes)
+export async function loginWithoutOTP(email: string): Promise<{ success: boolean; message: string; role?: string }> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+      include: { company: true },
+    });
+
+    if (!user) {
+      return { success: false, message: 'El correo electrónico no está registrado.' };
+    }
+
+    if (!user.isActive) {
+      return { success: false, message: 'Esta cuenta de usuario está desactivada.' };
+    }
+
+    // Crear token de sesión
+    const token = signToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      companyId: user.companyId,
+    });
+
+    // Establecer la cookie de sesión por 1 año
+    const cookieStore = await cookies();
+    cookieStore.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365, // 365 días (1 año)
+      path: '/',
+    });
+
+    return { success: true, message: 'Sesión iniciada con éxito.', role: user.role };
+  } catch (error) {
+    console.error('Error en login sin OTP:', error);
+    return { success: false, message: 'Ocurrió un error al iniciar sesión.' };
+  }
+}
