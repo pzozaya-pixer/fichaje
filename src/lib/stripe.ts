@@ -4,9 +4,7 @@ import { prisma } from './db';
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-export const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2025-01-27.accredited' as any, // Utilizar la API más estable o dejar que use la por defecto
-});
+export const stripe = new Stripe(stripeSecretKey);
 
 // Crear una sesión de pago en Stripe con 15 días de prueba
 export async function createCheckoutSession(
