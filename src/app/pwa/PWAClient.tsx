@@ -70,6 +70,7 @@ export default function PWAClient({
   const [todayStatus, setTodayStatus] = useState(initialTodayStatus);
   const [fichajes, setFichajes] = useState(initialFichajes);
   const [summary, setSummary] = useState(initialSummary);
+  const [currentLegalDoc, setCurrentLegalDoc] = useState<string | null>(null);
 
   // Estados de Geolocalización
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -983,8 +984,15 @@ export default function PWAClient({
                   </div>
                   <span style={{ marginLeft: 'auto', fontSize: '13px', color: 'var(--pwa-text-secondary)' }}>Español</span>
                 </div>
-                
-                <a href="#" style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--pwa-border)', fontSize: '14px' }}>
+                <a href="#" onClick={(e) => { e.preventDefault(); setCurrentLegalDoc('aviso'); }} style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--pwa-border)', fontSize: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <BookOpen size={18} />
+                    <span>Aviso legal</span>
+                  </div>
+                  <ChevronRight size={16} style={{ marginLeft: 'auto', color: 'var(--pwa-text-secondary)' }} />
+                </a>
+
+                <a href="#" onClick={(e) => { e.preventDefault(); setCurrentLegalDoc('privacidad'); }} style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--pwa-border)', fontSize: '14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Shield size={18} />
                     <span>Política de privacidad</span>
@@ -992,10 +1000,26 @@ export default function PWAClient({
                   <ChevronRight size={16} style={{ marginLeft: 'auto', color: 'var(--pwa-text-secondary)' }} />
                 </a>
 
-                <a href="#" style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--pwa-border)', fontSize: '14px' }}>
+                <a href="#" onClick={(e) => { e.preventDefault(); setCurrentLegalDoc('cookies'); }} style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--pwa-border)', fontSize: '14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <BookOpen size={18} />
-                    <span>Términos y condiciones</span>
+                    <HelpCircle size={18} />
+                    <span>Política de cookies</span>
+                  </div>
+                  <ChevronRight size={16} style={{ marginLeft: 'auto', color: 'var(--pwa-text-secondary)' }} />
+                </a>
+
+                <a href="#" onClick={(e) => { e.preventDefault(); setCurrentLegalDoc('terminos'); }} style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--pwa-border)', fontSize: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <FileText size={18} />
+                    <span>Términos de uso</span>
+                  </div>
+                  <ChevronRight size={16} style={{ marginLeft: 'auto', color: 'var(--pwa-text-secondary)' }} />
+                </a>
+
+                <a href="#" onClick={(e) => { e.preventDefault(); setCurrentLegalDoc('dpa'); }} style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--pwa-border)', fontSize: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <CheckCircle size={18} />
+                    <span>DPA (Tratamiento de Datos)</span>
                   </div>
                   <ChevronRight size={16} style={{ marginLeft: 'auto', color: 'var(--pwa-text-secondary)' }} />
                 </a>
@@ -1035,6 +1059,150 @@ export default function PWAClient({
           <span>Más</span>
         </button>
       </nav>
+
+      {/* MODAL PARA DOCUMENTOS LEGALES */}
+      {currentLegalDoc && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--pwa-bg-secondary)',
+              border: '1px solid var(--pwa-border)',
+              borderRadius: 'var(--radius-lg)',
+              width: '100%',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+            }}
+          >
+            {/* Cabecera Modal */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--pwa-border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'white', margin: 0 }}>
+                {currentLegalDoc === 'aviso' && 'Aviso Legal'}
+                {currentLegalDoc === 'privacidad' && 'Política de Privacidad'}
+                {currentLegalDoc === 'cookies' && 'Política de Cookies'}
+                {currentLegalDoc === 'terminos' && 'Términos de Uso'}
+                {currentLegalDoc === 'dpa' && 'DPA (Anexo de Tratamiento de Datos - RGPD)'}
+              </h3>
+              <button
+                onClick={() => setCurrentLegalDoc(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--pwa-text-secondary)',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  lineHeight: 1,
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Contenido Modal */}
+            <div
+              style={{
+                padding: '20px',
+                overflowY: 'auto',
+                fontSize: '13px',
+                lineHeight: '1.6',
+                color: 'var(--pwa-text-secondary)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              {currentLegalDoc === 'aviso' && (
+                <>
+                  <p><strong>1. Datos Identificativos:</strong> En cumplimiento del deber de información recogido en el artículo 10 de la Ley 34/2002, de 11 de julio, de Servicios de la Sociedad de la Información y del Comercio Electrónico (LSSI-CE), se hace constar que el titular de la plataforma es la entidad titular de Fichaje App.</p>
+                  <p><strong>2. Propiedad Intelectual:</strong> Todos los derechos de propiedad intelectual e industrial sobre el software, diseño, código fuente y contenidos de esta aplicación pertenecen a Fichaje App o a sus licenciantes. Queda prohibida su reproducción o distribución sin consentimiento previo.</p>
+                  <p><strong>3. Condiciones de Uso:</strong> El usuario se compromete a hacer un uso adecuado de la aplicación de control horario, garantizando la veracidad de los datos aportados en el registro y en los marcajes de jornada.</p>
+                </>
+              )}
+
+              {currentLegalDoc === 'privacidad' && (
+                <>
+                  <p><strong>1. Responsable del Tratamiento:</strong> La empresa contratante de Fichaje App actúa como Responsable del Tratamiento de los datos de sus empleados. Fichaje App actúa como Encargado del Tratamiento.</p>
+                  <p><strong>2. Finalidad del Tratamiento:</strong> Los datos de geolocalización, registro de jornada, nombre y datos de contacto se tratarán exclusivamente para cumplir con la obligación legal de registro horario establecida en el Estatuto de los Trabajadores (art. 34.9).</p>
+                  <p><strong>3. Derechos:</strong> Los trabajadores pueden ejercitar sus derechos de acceso, rectificación, supresión y limitación del tratamiento dirigiéndose al administrador de su respectiva empresa.</p>
+                </>
+              )}
+
+              {currentLegalDoc === 'cookies' && (
+                <>
+                  <p><strong>Uso de Cookies:</strong> Esta aplicación utiliza únicamente cookies técnicas y de sesión que son estrictamente necesarias para el correcto funcionamiento del sistema de autenticación, mantener la sesión activa y asegurar la integridad de la plataforma.</p>
+                  <p>No se utilizan cookies de seguimiento publicitario ni de análisis de terceros que requieran consentimiento explícito bajo la normativa vigente.</p>
+                </>
+              )}
+
+              {currentLegalDoc === 'terminos' && (
+                <>
+                  <p><strong>1. Descripción del Servicio:</strong> Fichaje App es una plataforma SaaS de registro y control de jornada laboral orientada a cumplir con la normativa española de control horario.</p>
+                  <p><strong>2. Suscripción y Licenciamiento:</strong> La plataforma ofrece un periodo de prueba gratuito de 15 días. Posteriormente, el acceso requiere una suscripción mensual o anual activa vinculada al número de empleados.</p>
+                  <p><strong>3. Modificaciones del Servicio:</strong> Nos reservamos el derecho de modificar o actualizar las funcionalidades del software para adaptarlas a cambios legislativos o mejoras de rendimiento.</p>
+                </>
+              )}
+
+              {currentLegalDoc === 'dpa' && (
+                <>
+                  <p><strong>DPA (Data Processing Agreement):</strong> Este anexo regula el tratamiento de datos de carácter personal en cumplimiento del Artículo 28 del Reglamento General de Protección de Datos (RGPD) y la LOPDGDD 3/2018.</p>
+                  <p><strong>Obligaciones del Encargado (Fichaje App):</strong></p>
+                  <ul>
+                    <li>Tratar los datos personales únicamente siguiendo instrucciones documentadas del Responsable (la Empresa).</li>
+                    <li>Garantizar que las personas autorizadas para tratar los datos se comprometen a respetar la confidencialidad.</li>
+                    <li>Implementar las medidas técnicas y organizativas necesarias para garantizar un nivel de seguridad adecuado al riesgo.</li>
+                    <li>Eliminar o devolver todos los datos personales una vez finalice la prestación de los servicios de tratamiento.</li>
+                  </ul>
+                </>
+              )}
+            </div>
+
+            {/* Botón Aceptar/Cerrar */}
+            <div
+              style={{
+                padding: '12px 20px',
+                borderTop: '1px solid var(--pwa-border)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setCurrentLegalDoc(null)}
+                className="btn btn-primary"
+                style={{ padding: '8px 16px', fontSize: '13px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
