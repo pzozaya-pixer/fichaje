@@ -1,0 +1,18 @@
+{
+  "name": "Fichaje.click - Control Horario",
+  "short_name": "Fichaje.click",
+  "description": "Sistema de control horario de jornada laboral y geolocalización de empleados.",
+  "start_url": "/pwa",
+  "display": "standalone",
+  "background_color": "#050b18",
+  "theme_color": "#0a1128",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "82b0ab1e5f0569f559fa25de1c236972f52d7d6f23b9c5a564b4092687242a23.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

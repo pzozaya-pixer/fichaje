@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fichaje?schema=public
+      - JWT_SECRET=cambia_este_secreto_en_produccion_123456789
+      - STRIPE_SECRET_KEY=sk_test_51... # Reemplazar con clave real
+      - STRIPE_WEBHOOK_SECRET=whsec_... # Reemplazar con secreto real
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51... # Reemplazar con clave real
+      - SMTP_HOST=smtp.tuservidor.com
+      - SMTP_PORT=587
+      - SMTP_USER=usuario@tuservidor.com
+      - SMTP_PASSWORD=contraseña_smtp
+      - SMTP_FROM=control-horario@tuservidor.com
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    depends_on:
+      - db
+    restart: always
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fichaje
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres_data:

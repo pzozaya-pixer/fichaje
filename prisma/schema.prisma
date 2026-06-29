@@ -1,0 +1,165 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN       // Responsable de RRHH (con permisos de fichaje manual y edición)
+  CONSULTANT  // Usuario consultivo (solo lectura para inspectores / representantes legales)
+  EMPLOYEE    // Empleado estándar
+}
+
+enum ClockStatus {
+  COMPLETED
+  IN_PROGRESS
+  ABSENT
+}
+
+enum ContractType {
+  INDEFINIDO
+  TEMPORAL
+  PRACTICAS
+  AUTONOMO
+}
+
+model Company {
+  id                   String            @id @default(uuid())
+  name                 String
+  cif                  String            @unique
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  
+  // Stripe Subscription
+  stripeCustomerId     String?           @unique
+  stripeSubscriptionId String?           @unique
+  subscriptionStatus   String            @default("trialing") // trialing, active, past_due, canceled
+  trialEndsAt          DateTime      
+  
+  // Relaciones
+  users                User[]
+  workCenters          WorkCenter[]
+  departments          Department[]
+  workdays             WorkdaySetting[]
+}
+
+model WorkCenter {
+  id          String    @id @default(uuid())
+  name        String
+  address     String?
+  latitude    Float
+  longitude   Float
+  radius      Float     @default(100) // Radio de geocerca en metros
+  
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users       User[]    // Empleados asignados a este centro
+  clockIns    ClockIn[] // Historial de fichajes en este centro
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([name, companyId])
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users     User[]
+  
+  @@unique([name, companyId])
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String
+  phone         String?
+  role          Role           @default(EMPLOYEE)
+  contractType  ContractType   @default(INDEFINIDO)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  
+  // OTP Auth
+  otpCode       String?
+  otpExpiresAt  DateTime?
+  
+  // Relaciones
+  companyId     String
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  departmentId  String?
+  department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  
+  // Centro de trabajo asignado
+  workCenterId  String?
+  workCenter    WorkCenter?    @relation(fields: [workCenterId], references: [id], onDelete: SetNull)
+  
+  clockIns      ClockIn[]
+  auditedLogs   AuditLog[]     @relation("AuditorRelation")
+}
+
+model ClockIn {
+  id             String      @id @default(uuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  workCenterId   String?     // Centro donde se realizó/asoció el fichaje
+  workCenter     WorkCenter? @relation(fields: [workCenterId], references: [id], onDelete: SetNull)
+  
+  // Fichajes
+  entryTime      DateTime
+  exitTime       DateTime?
+  breaks         Json?       // Lista de { start: DateTime, end: DateTime? }
+  
+  // Ubicación del fichaje de entrada
+  entryLat       Float?
+  entryLng       Float?
+  entryDistance  Float?      // Distancia a la geocerca en metros
+  entryInZone    Boolean     @default(true)
+  
+  // Ubicación del fichaje de salida
+  exitLat        Float?
+  exitLng        Float?
+  exitDistance   Float?
+  exitInZone     Boolean     @default(true)
+  
+  // Si fue creado manualmente por el Administrador
+  isManual       Boolean     @default(false)
+  
+  status         ClockStatus @default(IN_PROGRESS)
+  notes          String?
+  
+  // Relaciones
+  auditLogs      AuditLog[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  clockInId   String
+  clockIn     ClockIn  @relation(fields: [clockInId], references: [id], onDelete: Cascade)
+  
+  editedById  String
+  editedBy    User     @relation("AuditorRelation", fields: [editedById], references: [id])
+  
+  changeDate  DateTime @default(now())
+  fieldName   String   // e.g., "entryTime", "exitTime", "breaks", "creation"
+  oldValue    String
+  newValue    String
+  reason      String   // Motivo obligatorio según la ley de control horario
+}
+
+model WorkdaySetting {
+  id           String   @id @default(uuid())
+  dayOfWeek    Int      // 0 = Domingo, 1 = Lunes, etc.
+  expectedHours Float    // e.g., 8.0
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
