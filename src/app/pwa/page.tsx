@@ -1,6 +1,7 @@
 'use server';
 
 import React from 'react';
+export const dynamic = 'force-dynamic';
 import { getCurrentUser } from '@/lib/auth';
 import { getTodayStatus, getMyFichajes, getMySummary } from '@/app/actions/pwa';
 import { redirect } from 'next/navigation';

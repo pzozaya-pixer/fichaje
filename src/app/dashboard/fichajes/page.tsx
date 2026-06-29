@@ -1,6 +1,7 @@
 'use server';
 
 import React from 'react';
+export const dynamic = 'force-dynamic';
 import { getClockIns, getEmployees, getDepartments, getWorkCenters } from '@/app/actions/admin';
 import FichajesClient from './FichajesClient';
 

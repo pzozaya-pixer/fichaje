@@ -1,6 +1,7 @@
 'use server';
 
 import React from 'react';
+export const dynamic = 'force-dynamic';
 import { getEmployees, getDepartments, getWorkCenters, getReportsData } from '@/app/actions/admin';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
