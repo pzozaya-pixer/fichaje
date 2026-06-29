@@ -65,6 +65,7 @@ export default async function ConfigPage() {
         status: user.company.subscriptionStatus,
         trialEndsAt: user.company.trialEndsAt.toISOString(),
         stripeCustomerId: user.company.stripeCustomerId || '',
+        stripeSubscriptionId: user.company.stripeSubscriptionId || '',
       }}
       companyId={user.companyId}
       companyEmail={user.email}

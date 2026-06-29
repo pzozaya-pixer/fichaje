@@ -45,6 +45,7 @@ interface ConfigClientProps {
     status: string;
     trialEndsAt: string;
     stripeCustomerId: string;
+    stripeSubscriptionId?: string;
   };
   companyId: string;
   companyEmail: string;
@@ -285,6 +286,11 @@ export default function ConfigClient({
     Math.ceil((new Date(subscription.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
   );
 
+  const hasActiveSubscription =
+    !!subscription.stripeSubscriptionId ||
+    subscription.status === 'active' ||
+    subscription.status === 'past_due';
+
   return (
     <>
       {/* CABECERA */}
@@ -322,8 +328,8 @@ export default function ConfigClient({
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Estado de suscripción</p>
-                <p style={{ fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: subscription.status === 'active' ? 'var(--success)' : 'var(--warning)' }}>
-                  {subscription.status === 'trialing' ? 'Periodo de Prueba' : subscription.status === 'active' ? 'Suscripción Activa' : 'Expirada/Inactiva'}
+                <p style={{ fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: hasActiveSubscription ? 'var(--success)' : 'var(--warning)' }}>
+                  {subscription.status === 'trialing' ? 'Periodo de Prueba' : hasActiveSubscription ? 'Suscripción Activa' : 'Expirada/Inactiva'}
                 </p>
               </div>
               
@@ -336,7 +342,7 @@ export default function ConfigClient({
             </div>
 
             {/* Opciones de Pago */}
-            {subscription.status !== 'active' ? (
+            {!hasActiveSubscription ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
                   Al suscribirte, activarás el acceso ilimitado para tu empresa. Puedes elegir entre pago mensual o anual:
