@@ -1,3 +1,5 @@
+process.env.TZ = process.env.TZ || 'Europe/Madrid';
+
 import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = globalThis as unknown as {

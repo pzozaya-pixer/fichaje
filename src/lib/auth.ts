@@ -1,3 +1,5 @@
+process.env.TZ = process.env.TZ || 'Europe/Madrid';
+
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { prisma } from './db';
