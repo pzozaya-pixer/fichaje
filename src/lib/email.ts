@@ -12,6 +12,14 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendOTPEmail(email: string, name: string, otp: string) {
+  // Si es una cuenta de demostración (@demo.com), imprimir en consola y saltarse el envío real
+  if (email.toLowerCase().endsWith('@demo.com')) {
+    console.log(`\n==========================================`);
+    console.log(`[CUENTA DEMO] Código OTP para ${name} (${email}): ${otp}`);
+    console.log(`==========================================\n`);
+    return true;
+  }
+
   const mailOptions = {
     from: process.env.SMTP_FROM || '"Control Horario" <noreply@example.com>',
     to: email,
