@@ -41,6 +41,8 @@ interface ConfigClientProps {
   };
   companyId: string;
   companyEmail: string;
+  monthlyPrice: string;
+  annualPrice: string;
 }
 
 export default function ConfigClient({
@@ -49,6 +51,8 @@ export default function ConfigClient({
   subscription,
   companyId,
   companyEmail,
+  monthlyPrice,
+  annualPrice,
 }: ConfigClientProps) {
   const searchParams = useSearchParams();
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>(initialWorkCenters);
@@ -259,7 +263,7 @@ export default function ConfigClient({
                   <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'var(--bg-primary)' }}>
                     <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Plan Mensual</h4>
                     <p style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-title)' }}>
-                      29€ <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>/ mes</span>
+                      {monthlyPrice} <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>/ mes</span>
                     </p>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Pago recurrente mensual. Cancele cuando quiera.</p>
                     <button
@@ -278,9 +282,9 @@ export default function ConfigClient({
                     <span className="badge badge-success" style={{ position: 'absolute', top: '-12px', right: '16px' }}>¡AHORRA 2 MESES!</span>
                     <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Plan Anual</h4>
                     <p style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-title)' }}>
-                      290€ <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>/ año</span>
+                      {annualPrice} <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>/ año</span>
                     </p>
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Equivalente a 24.16€/mes. Un solo cargo anual.</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Equivalente a {(parseFloat(annualPrice.replace(/[^0-9.]/g, '')) / 12 || 24.16).toFixed(2)}€/mes. Un solo cargo anual.</p>
                     <button
                       disabled={stripeLoading}
                       onClick={() => handleSubscribe('annual')}

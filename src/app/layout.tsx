@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Fichaje.click - Control Horario",
   description: "Sistema de control horario de jornada laboral y geolocalización de empleados.",
-  manifest: "/manifest.json",
+  manifest: "/fichaje/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
