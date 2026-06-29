@@ -1,9 +1,16 @@
 import React from 'react';
 export const dynamic = 'force-dynamic';
 import { getReportsData, getEmployees } from '@/app/actions/admin';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import DashboardClient from './DashboardClient';
 
 export default async function DashboardPage() {
+  const user = await getCurrentUser();
+  if (user?.role === 'CONSULTANT') {
+    redirect('/dashboard/reports');
+  }
+
   const reportsData = await getReportsData();
   const employees = await getEmployees();
 

@@ -9,6 +9,9 @@ import { stripe } from '@/lib/stripe';
 export default async function ConfigPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/');
+  if (user.role === 'CONSULTANT') {
+    redirect('/dashboard/reports');
+  }
 
   const workCenters = await getWorkCenters();
   const departments = await getDepartments();

@@ -1,9 +1,16 @@
 import React from 'react';
 export const dynamic = 'force-dynamic';
 import { getClockIns, getEmployees, getDepartments, getWorkCenters } from '@/app/actions/admin';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import FichajesClient from './FichajesClient';
 
 export default async function FichajesPage() {
+  const user = await getCurrentUser();
+  if (user?.role === 'CONSULTANT') {
+    redirect('/dashboard/reports');
+  }
+
   const clockIns = await getClockIns();
   const employees = await getEmployees();
   const departments = await getDepartments();

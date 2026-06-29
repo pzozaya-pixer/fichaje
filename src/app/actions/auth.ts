@@ -111,6 +111,22 @@ export async function registerCompanyAction(data: {
           companyId: company.id,
         },
       });
+
+      // 4. Crear usuario inspector automático (con rol CONSULTANT)
+      const domain = email.split('@')[1];
+      const inspectorEmail = `inspector@${domain}`;
+
+      if (inspectorEmail !== email) {
+        await tx.user.create({
+          data: {
+            email: inspectorEmail,
+            name: 'Inspector de Trabajo',
+            role: 'CONSULTANT',
+            contractType: 'INDEFINIDO',
+            companyId: company.id,
+          },
+        });
+      }
     });
 
     // Enviar OTP para el primer acceso

@@ -1,9 +1,16 @@
 import React from 'react';
 export const dynamic = 'force-dynamic';
 import { getEmployees, getDepartments, getWorkCenters } from '@/app/actions/admin';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import EmployeesClient from './EmployeesClient';
 
 export default async function EmployeesPage() {
+  const user = await getCurrentUser();
+  if (user?.role === 'CONSULTANT') {
+    redirect('/dashboard/reports');
+  }
+
   const employees = await getEmployees();
   const departments = await getDepartments();
   const workCenters = await getWorkCenters();

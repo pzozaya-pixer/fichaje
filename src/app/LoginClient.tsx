@@ -324,10 +324,10 @@ export default function LoginClient() {
             {loading ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
-                <span>Enviando...</span>
+                <span>Accediendo...</span>
               </>
             ) : (
-              <span>Solicitar Código de Acceso</span>
+              <span>Acceder</span>
             )}
           </button>
         </form>

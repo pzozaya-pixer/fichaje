@@ -51,30 +51,36 @@ export default async function DashboardLayout({
         </div>
 
         <nav className="sidebar-menu">
-          <SidebarLink href="/dashboard">
-            <Home size={18} />
-            <span>Inicio</span>
-          </SidebarLink>
-          
-          <SidebarLink href="/dashboard/employees">
-            <Users size={18} />
-            <span>Empleados</span>
-          </SidebarLink>
-          
-          <SidebarLink href="/dashboard/fichajes">
-            <Calendar size={18} />
-            <span>Fichajes</span>
-          </SidebarLink>
+          {user.role === 'ADMIN' && (
+            <>
+              <SidebarLink href="/dashboard">
+                <Home size={18} />
+                <span>Inicio</span>
+              </SidebarLink>
+              
+              <SidebarLink href="/dashboard/employees">
+                <Users size={18} />
+                <span>Empleados</span>
+              </SidebarLink>
+              
+              <SidebarLink href="/dashboard/fichajes">
+                <Calendar size={18} />
+                <span>Fichajes</span>
+              </SidebarLink>
+            </>
+          )}
           
           <SidebarLink href="/dashboard/reports">
             <BarChart2 size={18} />
             <span>Informes</span>
           </SidebarLink>
           
-          <SidebarLink href="/dashboard/config">
-            <Settings size={18} />
-            <span>Configuración</span>
-          </SidebarLink>
+          {user.role === 'ADMIN' && (
+            <SidebarLink href="/dashboard/config">
+              <Settings size={18} />
+              <span>Configuración</span>
+            </SidebarLink>
+          )}
         </nav>
 
         <div className="sidebar-footer">
