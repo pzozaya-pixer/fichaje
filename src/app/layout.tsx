@@ -10,6 +10,10 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Fichaje.click",
   },
+  icons: {
+    icon: "/fichaje/icono.png",
+    apple: "/fichaje/icono.png",
+  },
 };
 
 export const viewport: Viewport = {
