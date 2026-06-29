@@ -1,6 +1,6 @@
 const CACHE_NAME = 'fichaje-cache-v1';
 const urlsToCache = [
-  '/fichaje/pwa',
+  '/fichaje',
   '/fichaje/manifest.json'
 ];
 
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (event) => {
       
       return fetch(event.request).catch(() => {
         // Fallback cuando no hay red (offline)
-        return caches.match('/fichaje/pwa');
+        return caches.match('/fichaje');
       });
     })
   );
