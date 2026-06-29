@@ -87,21 +87,61 @@ export async function getWorkCenters() {
   });
 }
 
+// Función auxiliar para geolocalizar una dirección usando OpenStreetMap Nominatim
+async function geocodeAddress(address: string): Promise<{ latitude: number; longitude: number } | null> {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`,
+      {
+        headers: {
+          'User-Agent': 'FichajeApp/1.0 (controlhorario@agenciapixer.es)',
+        },
+      }
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data && data.length > 0) {
+      return {
+        latitude: parseFloat(data[0].lat),
+        longitude: parseFloat(data[0].lon),
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error al geolocalizar la dirección:', error);
+    return null;
+  }
+}
+
 export async function saveWorkCenter(data: {
   id?: string;
   name: string;
   address?: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   radius: number;
 }) {
   const admin = await checkAdmin();
 
+  let latitude = data.latitude || 0;
+  let longitude = data.longitude || 0;
+
+  // Si hay una dirección, buscar sus coordenadas GPS mediante geocodificación
+  if (data.address && data.address.trim().length > 0) {
+    const coords = await geocodeAddress(data.address);
+    if (coords) {
+      latitude = coords.latitude;
+      longitude = coords.longitude;
+    } else {
+      throw new Error('No se pudo geolocalizar la dirección ingresada. Por favor, verifica que esté escrita correctamente.');
+    }
+  }
+
   const centerData = {
     name: data.name.trim(),
-    address: data.address || null,
-    latitude: data.latitude,
-    longitude: data.longitude,
+    address: data.address ? data.address.trim() : null,
+    latitude,
+    longitude,
     radius: data.radius,
     companyId: admin.companyId,
   };

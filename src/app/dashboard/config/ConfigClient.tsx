@@ -108,8 +108,12 @@ export default function ConfigClient({
 
   const handleSaveCenter = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!centerName || !centerLat || !centerLng || !centerRadius) {
-      setError('Todos los campos del centro son obligatorios.');
+    if (!centerName || !centerRadius) {
+      setError('El nombre y el radio del centro son obligatorios.');
+      return;
+    }
+    if (!centerAddress && (!centerLat || !centerLng)) {
+      setError('Debes introducir una dirección o ingresar las coordenadas GPS manualmente.');
       return;
     }
 
@@ -121,8 +125,8 @@ export default function ConfigClient({
         id: editingCenter?.id,
         name: centerName,
         address: centerAddress,
-        latitude: parseFloat(centerLat as any),
-        longitude: parseFloat(centerLng as any),
+        latitude: centerLat ? parseFloat(centerLat as any) : undefined,
+        longitude: centerLng ? parseFloat(centerLng as any) : undefined,
         radius: parseInt(centerRadius as any),
       });
       window.location.reload();
