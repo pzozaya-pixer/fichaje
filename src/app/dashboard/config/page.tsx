@@ -67,6 +67,14 @@ export default async function ConfigPage() {
         stripeCustomerId: user.company.stripeCustomerId || '',
         stripeSubscriptionId: user.company.stripeSubscriptionId || '',
       }}
+      company={{
+        name: user.company.name,
+        cif: user.company.cif,
+        address: user.company.address || '',
+        city: user.company.city || '',
+        province: user.company.province || '',
+        postalCode: user.company.postalCode || '',
+      }}
       companyId={user.companyId}
       companyEmail={user.email}
       monthlyPrice={monthlyPriceLabel}

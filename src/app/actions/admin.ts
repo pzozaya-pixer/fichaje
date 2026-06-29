@@ -626,3 +626,73 @@ export async function confirmCompanyDeletion(otpCode: string) {
     return { success: false, message: 'Ocurrió un error al procesar la baja de la empresa.' };
   }
 }
+
+export async function updateCompanyBillingInfo(data: {
+  name: string;
+  cif: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
+}) {
+  const admin = await checkAdmin();
+
+  try {
+    // 1. Actualizar en nuestra base de datos
+    const updatedCompany = await prisma.company.update({
+      where: { id: admin.companyId },
+      data: {
+        name: data.name.trim(),
+        cif: data.cif.trim().toUpperCase(),
+        address: data.address?.trim() || null,
+        city: data.city?.trim() || null,
+        province: data.province?.trim() || null,
+        postalCode: data.postalCode?.trim() || null,
+      },
+    });
+
+    // 2. Si tiene stripeCustomerId, sincronizar con Stripe
+    if (updatedCompany.stripeCustomerId) {
+      // Actualizar dirección y nombre del cliente en Stripe
+      await stripe.customers.update(updatedCompany.stripeCustomerId, {
+        name: updatedCompany.name,
+        address: {
+          line1: updatedCompany.address || '',
+          city: updatedCompany.city || '',
+          state: updatedCompany.province || '',
+          postal_code: updatedCompany.postalCode || '',
+          country: 'ES',
+        },
+      });
+
+      // Sincronizar el CIF/NIF como Tax ID en Stripe
+      try {
+        const taxIds = await stripe.customers.listTaxIds(updatedCompany.stripeCustomerId);
+        
+        // Eliminar tax IDs existentes si difieren del nuevo CIF
+        for (const taxId of taxIds.data) {
+          if (taxId.value !== updatedCompany.cif) {
+            await stripe.customers.deleteTaxId(updatedCompany.stripeCustomerId, taxId.id);
+          }
+        }
+
+        // Si no está registrado el CIF actual, registrarlo
+        const hasCurrentNif = taxIds.data.some((t) => t.value === updatedCompany.cif);
+        if (!hasCurrentNif) {
+          await stripe.customers.createTaxId(updatedCompany.stripeCustomerId, {
+            type: 'es_cif',
+            value: updatedCompany.cif,
+          });
+        }
+      } catch (taxError) {
+        console.error('Error al actualizar Tax ID en Stripe:', taxError);
+      }
+    }
+
+    revalidatePath('/dashboard/config');
+    return { success: true, message: 'Datos de facturación actualizados correctamente.' };
+  } catch (error: any) {
+    console.error('Error al actualizar datos de facturación:', error);
+    return { success: false, message: error.message || 'Error al actualizar los datos.' };
+  }
+}

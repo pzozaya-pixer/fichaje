@@ -7,7 +7,8 @@ import {
   deleteWorkCenter,
   saveDepartment,
   requestCompanyDeletionOtp,
-  confirmCompanyDeletion
+  confirmCompanyDeletion,
+  updateCompanyBillingInfo
 } from '@/app/actions/admin';
 import { subscribeAction, openBillingPortalAction, cancelSubscriptionAction } from '@/app/actions/stripe';
 import {
@@ -47,6 +48,14 @@ interface ConfigClientProps {
     stripeCustomerId: string;
     stripeSubscriptionId?: string;
   };
+  company: {
+    name: string;
+    cif: string;
+    address: string;
+    city: string;
+    province: string;
+    postalCode: string;
+  };
   companyId: string;
   companyEmail: string;
   monthlyPrice: string;
@@ -57,6 +66,7 @@ export default function ConfigClient({
   initialWorkCenters,
   initialDepartments,
   subscription,
+  company,
   companyId,
   companyEmail,
   monthlyPrice,
@@ -122,6 +132,49 @@ export default function ConfigClient({
       setDeletionError('Ocurrió un error al procesar la baja de la empresa.');
     } finally {
       setDeletionLoading(false);
+    }
+  };
+
+  // Estados para datos de facturación
+  const [companyName, setCompanyName] = useState(company.name);
+  const [companyCif, setCompanyCif] = useState(company.cif);
+  const [billingAddress, setBillingAddress] = useState(company.address);
+  const [billingCity, setBillingCity] = useState(company.city);
+  const [billingProvince, setBillingProvince] = useState(company.province);
+  const [billingPostalCode, setBillingPostalCode] = useState(company.postalCode);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingSuccess, setBillingSuccess] = useState('');
+
+  const handleSaveBillingInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyName || !companyCif) {
+      alert('Razón social y CIF/NIF son obligatorios.');
+      return;
+    }
+
+    setBillingLoading(true);
+    setBillingSuccess('');
+
+    try {
+      const res = await updateCompanyBillingInfo({
+        name: companyName,
+        cif: companyCif,
+        address: billingAddress,
+        city: billingCity,
+        province: billingProvince,
+        postalCode: billingPostalCode,
+      });
+
+      if (res.success) {
+        setBillingSuccess(res.message);
+        setTimeout(() => setBillingSuccess(''), 4000);
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert('Error al guardar los datos de facturación.');
+    } finally {
+      setBillingLoading(false);
     }
   };
 
@@ -426,6 +479,101 @@ export default function ConfigClient({
               </div>
             )}
           </div>
+        </div>
+
+        {/* DATOS DE FACTURACIÓN DE LA EMPRESA */}
+        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+            <Building size={20} style={{ color: 'var(--primary)' }} />
+            <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Datos de Facturación (Aparecen en tus facturas)</h3>
+          </div>
+
+          {billingSuccess && (
+            <div className="pwa-geo-status in-range" style={{ margin: 0, backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#15803d', borderLeft: '4px solid #22c55e' }}>
+              <span>{billingSuccess}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveBillingInfo} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Razón Social *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="Ej. Mi Empresa S.L."
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">CIF / NIF *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={companyCif}
+                  onChange={(e) => setCompanyCif(e.target.value)}
+                  placeholder="Ej. B12345678"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Dirección Fiscal</label>
+              <input
+                type="text"
+                className="form-input"
+                value={billingAddress}
+                onChange={(e) => setBillingAddress(e.target.value)}
+                placeholder="Ej. Calle Mayor 12, Piso 3"
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Población</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={billingCity}
+                  onChange={(e) => setBillingCity(e.target.value)}
+                  placeholder="Ej. Madrid"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Provincia</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={billingProvince}
+                  onChange={(e) => setBillingProvince(e.target.value)}
+                  placeholder="Ej. Madrid"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Código Postal</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={billingPostalCode}
+                  onChange={(e) => setBillingPostalCode(e.target.value)}
+                  placeholder="Ej. 28001"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={billingLoading}
+              className="btn btn-primary"
+              style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              {billingLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+              Guardar Datos de Facturación
+            </button>
+          </form>
         </div>
 
         {/* SECCIÓN 2: CENTROS DE TRABAJO (MULTICENTRO) */}
