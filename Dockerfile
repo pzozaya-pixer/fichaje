@@ -55,5 +55,5 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# server.js es creado por next build cuando se usa output: 'standalone'
-CMD ["node", "server.js"]
+# Ejecutar migraciones automáticamente y arrancar la aplicación
+CMD ["sh", "-c", "npx prisma@6.2.1 db push && node server.js"]
