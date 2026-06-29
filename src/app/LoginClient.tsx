@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { requestOtpAction, verifyOtpAction, registerCompanyAction } from './actions/auth';
 import { Clock, Mail, ShieldAlert, Loader2, Building, User, Phone } from 'lucide-react';
 
@@ -19,6 +19,16 @@ export default function LoginClient() {
   const [adminName, setAdminName] = useState('');
   const [phone, setPhone] = useState('');
 
+  // Cargar el correo guardado en el dispositivo al iniciar
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('fichaje_saved_email');
+      if (savedEmail) {
+        setEmail(savedEmail);
+      }
+    }
+  }, []);
+
   const inputRefs = [
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
@@ -32,6 +42,11 @@ export default function LoginClient() {
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+
+    // Guardar el correo en el dispositivo del empleado
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fichaje_saved_email', email);
+    }
 
     setLoading(true);
     setError('');
@@ -65,6 +80,11 @@ export default function LoginClient() {
     setMessage('');
 
     try {
+      // Guardar el correo en el dispositivo del empleado
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('fichaje_saved_email', email);
+      }
+
       const res = await registerCompanyAction({
         companyName,
         cif,

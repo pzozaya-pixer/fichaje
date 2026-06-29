@@ -157,7 +157,7 @@ export default function ReportsClient({
             </div>
 
             <a
-              href={`/api/export/excel?startDate=${excelStart}&endDate=${excelEnd}&departmentId=${excelDept}&workCenterId=${excelCenter}`}
+              href={`/fichaje/api/export/excel?startDate=${excelStart}&endDate=${excelEnd}&departmentId=${excelDept}&workCenterId=${excelCenter}`}
               className="btn btn-primary"
               style={{ width: '100%', marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
@@ -222,7 +222,7 @@ export default function ReportsClient({
             </div>
 
             <a
-              href={`/api/export/pdf?userId=${pdfEmployeeId}&startDate=${pdfStart}&endDate=${pdfEnd}`}
+              href={`/fichaje/api/export/pdf?userId=${pdfEmployeeId}&startDate=${pdfStart}&endDate=${pdfEnd}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-secondary"

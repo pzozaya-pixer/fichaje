@@ -96,12 +96,15 @@ export default function PWAClient({
   useEffect(() => {
     setLiveWorkedTimeMs(todayStatus.workedTimeMs);
 
-    let interval: NodeJS.Timeout;
-    if (todayStatus.isActive && !todayStatus.isOnBreak) {
-      interval = setInterval(() => {
-        setLiveWorkedTimeMs((prev) => prev + 1000);
-      }, 1000);
+    if (!todayStatus.isActive || todayStatus.isOnBreak) {
+      return;
     }
+
+    const stateLoadedAt = Date.now();
+    const interval = setInterval(() => {
+      const elapsedSinceStateLoad = Date.now() - stateLoadedAt;
+      setLiveWorkedTimeMs(todayStatus.workedTimeMs + elapsedSinceStateLoad);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [todayStatus.isActive, todayStatus.isOnBreak, todayStatus.workedTimeMs]);

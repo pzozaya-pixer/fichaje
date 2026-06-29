@@ -155,7 +155,7 @@ export async function verifyOTP(email: string, code: string): Promise<{ success:
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 días
+      maxAge: 60 * 60 * 24 * 365, // 365 días (1 año)
       path: '/',
     });
 

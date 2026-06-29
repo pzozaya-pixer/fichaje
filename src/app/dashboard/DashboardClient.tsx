@@ -301,7 +301,7 @@ export default function DashboardClient({ initialData, employees }: DashboardCli
           </div>
 
           <a
-            href={`/api/export/excel?startDate=${reportStart}&endDate=${reportEnd}`}
+            href={`/fichaje/api/export/excel?startDate=${reportStart}&endDate=${reportEnd}`}
             download
             className="btn btn-primary"
             style={{ width: '100%', marginTop: 'auto' }}
@@ -344,7 +344,7 @@ export default function DashboardClient({ initialData, employees }: DashboardCli
           </div>
 
           <a
-            href={`/api/export/pdf?userId=${selectedEmployeeId}&startDate=${reportStart}&endDate=${reportEnd}`}
+            href={`/fichaje/api/export/pdf?userId=${selectedEmployeeId}&startDate=${reportStart}&endDate=${reportEnd}`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-secondary"

@@ -247,7 +247,7 @@ export default function FichajesClient({
             Fichar por empleado
           </button>
           <a
-            href={`/api/export/excel?startDate=${startDate}&endDate=${endDate}&departmentId=${departmentId}&workCenterId=${workCenterId}&search=${search}`}
+            href={`/fichaje/api/export/excel?startDate=${startDate}&endDate=${endDate}&departmentId=${departmentId}&workCenterId=${workCenterId}&search=${search}`}
             className="btn btn-primary"
           >
             <FileSpreadsheet size={18} />
