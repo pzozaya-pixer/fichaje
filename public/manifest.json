@@ -9,13 +9,13 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/fichaje/82b0ab1e5f0569f559fa25de1c236972f52d7d6f23b9c5a564b4092687242a23.png",
+      "src": "/fichaje/icono.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/fichaje/82b0ab1e5f0569f559fa25de1c236972f52d7d6f23b9c5a564b4092687242a23.png",
+      "src": "/fichaje/icono.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
