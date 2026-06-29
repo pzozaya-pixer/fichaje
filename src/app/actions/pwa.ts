@@ -318,17 +318,29 @@ export async function getMyFichajes(startDate?: Date, endDate?: Date) {
     let durationMs = 0;
     let breakMs = 0;
     const breaks = (f.breaks as Array<{ start: string; end: string | null }>) || [];
+    let hasActiveBreak = false;
+    let activeBreakStart: Date | null = null;
 
     breaks.forEach((b) => {
-      if (b.start && b.end) {
-        breakMs += new Date(b.end).getTime() - new Date(b.start).getTime();
+      if (b.start) {
+        if (b.end) {
+          breakMs += new Date(b.end).getTime() - new Date(b.start).getTime();
+        } else {
+          hasActiveBreak = true;
+          activeBreakStart = new Date(b.start);
+        }
       }
     });
 
     if (f.exitTime) {
       durationMs = f.exitTime.getTime() - f.entryTime.getTime() - breakMs;
     } else {
-      durationMs = new Date().getTime() - f.entryTime.getTime() - breakMs;
+      const now = new Date();
+      durationMs = now.getTime() - f.entryTime.getTime() - breakMs;
+      if (hasActiveBreak && activeBreakStart) {
+        // Restar el tiempo transcurrido en la pausa activa
+        durationMs -= now.getTime() - (activeBreakStart as Date).getTime();
+      }
     }
 
     return {

@@ -610,7 +610,9 @@ export default function PWAClient({
                         })}
                       </p>
                     </div>
-                    <span className="pwa-fichaje-duration">{formatShortTime(f.durationMs)}</span>
+                    <span className="pwa-fichaje-duration">
+                      {f.exitTime ? formatShortTime(f.durationMs) : formatShortTime(liveWorkedTimeMs)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -673,7 +675,9 @@ export default function PWAClient({
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <p className="pwa-fichaje-duration">{formatShortTime(f.durationMs)}</p>
+                    <p className="pwa-fichaje-duration">
+                      {f.exitTime ? formatShortTime(f.durationMs) : formatShortTime(liveWorkedTimeMs)}
+                    </p>
                     <p style={{ fontSize: '10px', color: 'var(--pwa-text-secondary)' }}>
                       Pausa: {Math.round(f.breakMs / (1000 * 60))} min
                     </p>
