@@ -10,7 +10,8 @@ import {
   confirmCompanyDeletion,
   updateCompanyBillingInfo,
   downloadBackupAction,
-  updateCompanyBackupSettingsAction
+  updateCompanyBackupSettingsAction,
+  restoreBackupAction
 } from '@/app/actions/admin';
 import { subscribeAction, openBillingPortalAction, cancelSubscriptionAction } from '@/app/actions/stripe';
 import {
@@ -26,7 +27,8 @@ import {
   Info,
   X,
   Database,
-  Download
+  Download,
+  Upload
 } from 'lucide-react';
 
 interface WorkCenter {
@@ -202,6 +204,59 @@ export default function ConfigClient({
       }
     } catch (err) {
       alert('Error al descargar la copia de seguridad.');
+    }
+  };
+
+  // Estados para restauración
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreMode, setRestoreMode] = useState<'partial' | 'complete'>('partial');
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreSuccess, setRestoreSuccess] = useState('');
+  const [restoreError, setRestoreError] = useState('');
+
+  const handleRestoreBackup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restoreFile) {
+      alert('Por favor, selecciona un archivo JSON de copia de seguridad.');
+      return;
+    }
+
+    const confirmMsg = restoreMode === 'complete'
+      ? '¿Estás seguro de que deseas realizar una RESTAURACIÓN COMPLETA?\n\n¡ATENCIÓN! Se eliminarán todos los empleados, fichajes, centros y departamentos actuales de la empresa para reemplazarlos por los del backup. Esta acción es destructiva y no se puede deshacer.'
+      : '¿Deseas realizar una restauración parcial (fusionar datos)?\n\nSe importarán los departamentos, centros, empleados y fichajes que falten en tu base de datos actual sin borrar la información que ya existe.';
+
+    if (!confirm(confirmMsg)) return;
+
+    setRestoreLoading(true);
+    setRestoreSuccess('');
+    setRestoreError('');
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const jsonText = event.target?.result as string;
+          const res = await restoreBackupAction(jsonText, restoreMode);
+
+          if (res.success) {
+            setRestoreSuccess(res.message);
+            setRestoreFile(null);
+            const fileInput = document.getElementById('backup-file-input') as HTMLInputElement;
+            if (fileInput) fileInput.value = '';
+            setTimeout(() => setRestoreSuccess(''), 5000);
+          } else {
+            setRestoreError(res.message);
+          }
+        } catch (err: any) {
+          setRestoreError('Error al leer el archivo JSON.');
+        } finally {
+          setRestoreLoading(false);
+        }
+      };
+      reader.readAsText(restoreFile);
+    } catch (err: any) {
+      setRestoreError('Ocurrió un error al procesar el archivo.');
+      setRestoreLoading(false);
     }
   };
 
@@ -703,6 +758,67 @@ export default function ConfigClient({
               Guardar Configuración de Backup
             </button>
           </form>
+
+          {/* RESTAURAR COPIA DE SEGURIDAD */}
+          <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Upload size={18} style={{ color: 'var(--primary)' }} />
+              <h4 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>Restaurar Copia de Seguridad</h4>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+              Sube un archivo de copia de seguridad (.json) para restaurar los datos de tu empresa.
+            </p>
+
+            {restoreSuccess && (
+              <div className="pwa-geo-status in-range" style={{ margin: 0, backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#15803d', borderLeft: '4px solid #22c55e' }}>
+                <span>{restoreSuccess}</span>
+              </div>
+            )}
+
+            {restoreError && (
+              <div className="pwa-geo-status out-range" style={{ margin: 0, backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderLeft: '4px solid var(--danger)' }}>
+                <span>{restoreError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleRestoreBackup} className="responsive-grid-3" style={{ alignItems: 'end' }}>
+              <div className="form-group">
+                <label className="form-label">Seleccionar Archivo (.json)</label>
+                <input
+                  id="backup-file-input"
+                  type="file"
+                  accept=".json"
+                  required
+                  className="form-input"
+                  style={{ padding: '8px 12px' }}
+                  onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Tipo de Restauración</label>
+                <select
+                  className="form-select"
+                  value={restoreMode}
+                  onChange={(e) => setRestoreMode(e.target.value as 'partial' | 'complete')}
+                >
+                  <option value="partial">Parcial (Fusionar sin borrar)</option>
+                  <option value="complete">Completa (Sobrescribir todo)</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={restoreLoading || !restoreFile}
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}
+              >
+                {restoreLoading ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
+                Restaurar Datos
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* SECCIÓN 2: CENTROS DE TRABAJO (MULTICENTRO) */}

@@ -789,3 +789,317 @@ export async function updateCompanyBackupSettingsAction(data: {
     return { success: false, message: error.message || 'Error al guardar la configuración.' };
   }
 }
+
+export async function restoreBackupAction(backupJson: string, mode: 'complete' | 'partial') {
+  const admin = await checkAdmin();
+
+  try {
+    const data = JSON.parse(backupJson);
+
+    // Validar estructura básica del backup
+    if (!data.company || !data.employees) {
+      return { success: false, message: 'El archivo de copia de seguridad no tiene un formato válido.' };
+    }
+
+    const companyId = admin.companyId;
+
+    if (mode === 'complete') {
+      // 1. RESTAURACIÓN COMPLETA (DESTRUCTIVA)
+      await prisma.$transaction(async (tx) => {
+        // Borrar fichajes y auditoría
+        await tx.clockIn.deleteMany({
+          where: { user: { companyId } },
+        });
+        
+        // Borrar centros de trabajo y departamentos
+        await tx.workCenter.deleteMany({ where: { companyId } });
+        await tx.department.deleteMany({ where: { companyId } });
+        await tx.workdaySetting.deleteMany({ where: { companyId } });
+
+        // Borrar empleados excepto el administrador actual
+        await tx.user.deleteMany({
+          where: {
+            companyId,
+            id: { not: admin.id },
+          },
+        });
+
+        // Restaurar Departamentos
+        const deptMap = new Map<string, string>(); // viejo ID -> nuevo ID
+        if (data.departments) {
+          for (const dept of data.departments) {
+            const newDept = await tx.department.create({
+              data: {
+                name: dept.name,
+                companyId,
+              },
+            });
+            deptMap.set(dept.id, newDept.id);
+          }
+        }
+
+        // Restaurar Centros de Trabajo
+        const centerMap = new Map<string, string>(); // viejo ID -> nuevo ID
+        if (data.workCenters) {
+          for (const center of data.workCenters) {
+            const newCenter = await tx.workCenter.create({
+              data: {
+                name: center.name,
+                address: center.address,
+                latitude: center.latitude,
+                longitude: center.longitude,
+                radius: center.radius,
+                companyId,
+              },
+            });
+            centerMap.set(center.id, newCenter.id);
+          }
+        }
+
+        // Restaurar Configuración de Jornada
+        if (data.workdaySettings) {
+          for (const ws of data.workdaySettings) {
+            await tx.workdaySetting.create({
+              data: {
+                dayOfWeek: ws.dayOfWeek,
+                expectedHours: ws.expectedHours || 8.0,
+                companyId,
+              },
+            });
+          }
+        }
+
+        // Restaurar Empleados
+        const userMap = new Map<string, string>(); // viejo ID -> nuevo ID
+        userMap.set(admin.id, admin.id); // El administrador conserva su ID
+
+        for (const emp of data.employees) {
+          if (emp.id === admin.id) {
+            // Actualizar el administrador actual con los datos del backup
+            await tx.user.update({
+              where: { id: admin.id },
+              data: {
+                name: emp.name,
+                phone: emp.phone || null,
+                role: emp.role,
+                contractType: emp.contractType,
+                dailyContractedHours: emp.dailyContractedHours || null,
+                monthlyContractedHours: emp.monthlyContractedHours || null,
+                departmentId: emp.departmentId ? deptMap.get(emp.departmentId) || null : null,
+                workCenterId: emp.workCenterId ? centerMap.get(emp.workCenterId) || null : null,
+              },
+            });
+            continue;
+          }
+
+          // Crear empleado
+          const newUser = await tx.user.create({
+            data: {
+              email: emp.email,
+              name: emp.name,
+              phone: emp.phone || null,
+              role: emp.role,
+              contractType: emp.contractType,
+              isActive: emp.isActive ?? true,
+              dailyContractedHours: emp.dailyContractedHours || null,
+              monthlyContractedHours: emp.monthlyContractedHours || null,
+              companyId,
+              departmentId: emp.departmentId ? deptMap.get(emp.departmentId) || null : null,
+              workCenterId: emp.workCenterId ? centerMap.get(emp.workCenterId) || null : null,
+            },
+          });
+          userMap.set(emp.id, newUser.id);
+        }
+
+        // Restaurar Fichajes y Auditoría
+        for (const emp of data.employees) {
+          const newUserId = userMap.get(emp.id);
+          if (!newUserId) continue;
+
+          if (emp.clockIns) {
+            for (const ci of emp.clockIns) {
+              const newClockIn = await tx.clockIn.create({
+                data: {
+                  userId: newUserId,
+                  workCenterId: ci.workCenterId ? centerMap.get(ci.workCenterId) || null : null,
+                  entryTime: new Date(ci.entryTime),
+                  exitTime: ci.exitTime ? new Date(ci.exitTime) : null,
+                  entryLat: ci.entryLat,
+                  entryLng: ci.entryLng,
+                  exitLat: ci.exitLat,
+                  exitLng: ci.exitLng,
+                  entryDistance: ci.entryDistance,
+                  exitDistance: ci.exitDistance,
+                  entryInZone: ci.entryInZone,
+                  exitInZone: ci.exitInZone,
+                  breaks: ci.breaks,
+                  status: ci.status,
+                  isManual: ci.isManual ?? false,
+                  notes: ci.notes || ci.reason || null,
+                },
+              });
+
+              // Restaurar logs de auditoría para este fichaje
+              if (ci.auditLogs) {
+                for (const al of ci.auditLogs) {
+                  const editedByUserId = userMap.get(al.editedById) || admin.id;
+                  await tx.auditLog.create({
+                    data: {
+                      clockInId: newClockIn.id,
+                      editedById: editedByUserId,
+                      changeDate: new Date(al.changeDate),
+                      fieldName: al.fieldName,
+                      oldValue: al.oldValue,
+                      newValue: al.newValue,
+                      reason: al.reason,
+                    },
+                  });
+                }
+              }
+            }
+          }
+        }
+      });
+
+    } else {
+      // 2. RESTAURACIÓN PARCIAL (FUSIONAR SIN DUPLICAR)
+      await prisma.$transaction(async (tx) => {
+        // Obtener departamentos, centros y empleados existentes
+        const existingDepts = await tx.department.findMany({ where: { companyId } });
+        const existingCenters = await tx.workCenter.findMany({ where: { companyId } });
+        const existingUsers = await tx.user.findMany({ where: { companyId } });
+
+        const deptMap = new Map<string, string>();
+        const centerMap = new Map<string, string>();
+
+        // Fusionar Departamentos
+        if (data.departments) {
+          for (const dept of data.departments) {
+            const match = existingDepts.find((d) => d.name.toLowerCase() === dept.name.toLowerCase());
+            if (match) {
+              deptMap.set(dept.id, match.id);
+            } else {
+              const newDept = await tx.department.create({
+                data: { name: dept.name, companyId },
+              });
+              deptMap.set(dept.id, newDept.id);
+            }
+          }
+        }
+
+        // Fusionar Centros
+        if (data.workCenters) {
+          for (const center of data.workCenters) {
+            const match = existingCenters.find((c) => c.name.toLowerCase() === center.name.toLowerCase());
+            if (match) {
+              centerMap.set(center.id, match.id);
+            } else {
+              const newCenter = await tx.workCenter.create({
+                data: {
+                  name: center.name,
+                  address: center.address,
+                  latitude: center.latitude,
+                  longitude: center.longitude,
+                  radius: center.radius,
+                  companyId,
+                },
+              });
+              centerMap.set(center.id, newCenter.id);
+            }
+          }
+        }
+
+        // Fusionar Empleados
+        const userMap = new Map<string, string>();
+        for (const emp of data.employees) {
+          const match = existingUsers.find((u) => u.email.toLowerCase() === emp.email.toLowerCase());
+          if (match) {
+            userMap.set(emp.id, match.id);
+          } else {
+            const newUser = await tx.user.create({
+              data: {
+                email: emp.email,
+                name: emp.name,
+                phone: emp.phone || null,
+                role: emp.role,
+                contractType: emp.contractType,
+                isActive: emp.isActive ?? true,
+                dailyContractedHours: emp.dailyContractedHours || null,
+                monthlyContractedHours: emp.monthlyContractedHours || null,
+                companyId,
+                departmentId: emp.departmentId ? deptMap.get(emp.departmentId) || null : null,
+                workCenterId: emp.workCenterId ? centerMap.get(emp.workCenterId) || null : null,
+              },
+            });
+            userMap.set(emp.id, newUser.id);
+          }
+        }
+
+        // Fusionar Fichajes (evitando duplicar si coincide la hora de entrada)
+        for (const emp of data.employees) {
+          const targetUserId = userMap.get(emp.id);
+          if (!targetUserId) continue;
+
+          const existingClockIns = await tx.clockIn.findMany({
+            where: { userId: targetUserId },
+          });
+
+          if (emp.clockIns) {
+            for (const ci of emp.clockIns) {
+              const entryTime = new Date(ci.entryTime);
+              const alreadyExists = existingClockIns.some(
+                (existing) => Math.abs(existing.entryTime.getTime() - entryTime.getTime()) < 60000
+              );
+
+              if (alreadyExists) continue;
+
+              const newClockIn = await tx.clockIn.create({
+                data: {
+                  userId: targetUserId,
+                  workCenterId: ci.workCenterId ? centerMap.get(ci.workCenterId) || null : null,
+                  entryTime,
+                  exitTime: ci.exitTime ? new Date(ci.exitTime) : null,
+                  entryLat: ci.entryLat,
+                  entryLng: ci.entryLng,
+                  exitLat: ci.exitLat,
+                  exitLng: ci.exitLng,
+                  entryDistance: ci.entryDistance,
+                  exitDistance: ci.exitDistance,
+                  entryInZone: ci.entryInZone,
+                  exitInZone: ci.exitInZone,
+                  breaks: ci.breaks,
+                  status: ci.status,
+                  isManual: ci.isManual ?? false,
+                  notes: ci.notes || ci.reason || null,
+                },
+              });
+
+              if (ci.auditLogs) {
+                for (const al of ci.auditLogs) {
+                  const editedByUserId = userMap.get(al.editedById) || admin.id;
+                  await tx.auditLog.create({
+                    data: {
+                      clockInId: newClockIn.id,
+                      editedById: editedByUserId,
+                      changeDate: new Date(al.changeDate),
+                      fieldName: al.fieldName,
+                      oldValue: al.oldValue,
+                      newValue: al.newValue,
+                      reason: al.reason,
+                    },
+                  });
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    revalidatePath('/dashboard/config');
+    return { success: true, message: `Restauración ${mode === 'complete' ? 'completa' : 'parcial'} realizada con éxito.` };
+  } catch (error: any) {
+    console.error('Error al restaurar backup:', error);
+    return { success: false, message: error.message || 'Error al procesar el archivo de copia de seguridad.' };
+  }
+}
