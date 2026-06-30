@@ -84,6 +84,18 @@ export default function ConfigClient({
   annualPrice,
 }: ConfigClientProps) {
   const searchParams = useSearchParams();
+  
+  const [webUrl, setWebUrl] = useState('https://apps.agenciapixer.es/fichaje');
+  const [pwaUrl, setPwaUrl] = useState('https://apps.agenciapixer.es/fichaje/pwa/');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      setWebUrl(`${origin}/fichaje`);
+      setPwaUrl(`${origin}/fichaje/pwa/`);
+    }
+  }, []);
+
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>(initialWorkCenters);
   const [departments, setDepartments] = useState<Department[]>(initialDepartments);
   
@@ -926,19 +938,21 @@ export default function ConfigClient({
                   Web
                 </span>
                 <span style={{ fontWeight: 600, fontSize: '15px', marginTop: '4px' }}>Plataforma (Registro / Admin)</span>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>https://apps.agenciapixer.es/fichaje</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{webUrl}</span>
               </div>
               <div style={{ padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent('https://apps.agenciapixer.es/fichaje')}`}
-                  alt="QR Plataforma Web" 
-                  width="180" 
-                  height="180" 
-                  style={{ display: 'block' }}
-                />
+                {webUrl && (
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(webUrl)}`}
+                    alt="QR Plataforma Web" 
+                    width="180" 
+                    height="180" 
+                    style={{ display: 'block' }}
+                  />
+                )}
               </div>
               <button 
-                onClick={() => printQrCode('https://apps.agenciapixer.es/fichaje', 'Plataforma Web (Registro / Admin)')}
+                onClick={() => printQrCode(webUrl, 'Plataforma Web (Registro / Admin)')}
                 className="btn btn-secondary" 
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
@@ -964,19 +978,21 @@ export default function ConfigClient({
                   Móvil
                 </span>
                 <span style={{ fontWeight: 600, fontSize: '15px', marginTop: '4px' }}>Aplicación de Fichaje (PWA)</span>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>https://apps.agenciapixer.es/fichaje/pwa/</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{pwaUrl}</span>
               </div>
               <div style={{ padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent('https://apps.agenciapixer.es/fichaje/pwa/')}`}
-                  alt="QR Aplicación PWA" 
-                  width="180" 
-                  height="180" 
-                  style={{ display: 'block' }}
-                />
+                {pwaUrl && (
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pwaUrl)}`}
+                    alt="QR Aplicación PWA" 
+                    width="180" 
+                    height="180" 
+                    style={{ display: 'block' }}
+                  />
+                )}
               </div>
               <button 
-                onClick={() => printQrCode('https://apps.agenciapixer.es/fichaje/pwa/', 'Aplicación de Fichaje (PWA)')}
+                onClick={() => printQrCode(pwaUrl, 'Aplicación de Fichaje (PWA)')}
                 className="btn btn-secondary" 
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
