@@ -34,7 +34,8 @@ export async function verifyOtpAction(email: string, otpCode: string, redirectTo
 
   if (result.success) {
     if (redirectTo) {
-      redirect(redirectTo);
+      const target = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`;
+      redirect(target);
     } else if (result.role === 'ADMIN' || result.role === 'CONSULTANT') {
       redirect('/dashboard');
     } else {

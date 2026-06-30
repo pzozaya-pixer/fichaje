@@ -64,7 +64,8 @@ export default function LoginClient() {
         if (res.immediate) {
           // Redirigir inmediatamente según el rol del usuario
           if (redirectTo) {
-            router.push(redirectTo);
+            const target = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`;
+            router.push(target);
           } else if (res.role === 'ADMIN' || res.role === 'CONSULTANT') {
             router.push('/dashboard');
           } else {

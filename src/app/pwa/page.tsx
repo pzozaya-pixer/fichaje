@@ -10,7 +10,7 @@ export default async function PWAPage() {
 
   // Redirigir si no está autenticado
   if (!user) {
-    redirect('/?redirectTo=/pwa');
+    redirect('/?redirectTo=pwa');
   }
 
   // Redirigir si la suscripción de la empresa ha expirado
