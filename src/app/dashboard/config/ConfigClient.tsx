@@ -911,13 +911,26 @@ export default function ConfigClient({
           <div className="responsive-grid-2" style={{ marginTop: '8px' }}>
             {/* QR 1: Acceso Web / Registro */}
             <div className="pwa-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '24px', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600, fontSize: '15px' }}>Plataforma Web (Registro / Admin)</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                <span style={{ 
+                  backgroundColor: 'var(--primary-light)', 
+                  color: 'var(--primary)', 
+                  fontSize: '14px', 
+                  fontWeight: 800, 
+                  padding: '6px 16px', 
+                  borderRadius: '20px', 
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  boxShadow: '0 2px 8px rgba(26, 102, 255, 0.15)'
+                }}>
+                  Web
+                </span>
+                <span style={{ fontWeight: 600, fontSize: '15px', marginTop: '4px' }}>Plataforma (Registro / Admin)</span>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>https://apps.agenciapixer.es/fichaje</span>
               </div>
               <div style={{ padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <img 
-                  src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fapps.agenciapixer.es%2Ffichaje" 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent('https://apps.agenciapixer.es/fichaje')}`}
                   alt="QR Plataforma Web" 
                   width="180" 
                   height="180" 
@@ -930,19 +943,32 @@ export default function ConfigClient({
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
                 <Printer size={16} />
-                Imprimir QR
+                Imprimir QR Web
               </button>
             </div>
 
             {/* QR 2: Aplicación Móvil (PWA) */}
             <div className="pwa-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '24px', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600, fontSize: '15px' }}>Aplicación de Fichaje (PWA)</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                <span style={{ 
+                  backgroundColor: 'rgba(34, 197, 94, 0.15)', 
+                  color: '#16a34a', 
+                  fontSize: '14px', 
+                  fontWeight: 800, 
+                  padding: '6px 16px', 
+                  borderRadius: '20px', 
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  boxShadow: '0 2px 8px rgba(34, 197, 94, 0.15)'
+                }}>
+                  Móvil
+                </span>
+                <span style={{ fontWeight: 600, fontSize: '15px', marginTop: '4px' }}>Aplicación de Fichaje (PWA)</span>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>https://apps.agenciapixer.es/fichaje/pwa</span>
               </div>
               <div style={{ padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <img 
-                  src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fapps.agenciapixer.es%2Ffichaje%2Fpwa" 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent('https://apps.agenciapixer.es/fichaje/pwa')}`}
                   alt="QR Aplicación PWA" 
                   width="180" 
                   height="180" 
@@ -955,7 +981,7 @@ export default function ConfigClient({
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
                 <Printer size={16} />
-                Imprimir QR
+                Imprimir QR Móvil
               </button>
             </div>
           </div>
