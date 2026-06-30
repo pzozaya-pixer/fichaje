@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { requestOtpAction, verifyOtpAction, registerCompanyAction } from './actions/auth';
 import { Clock, Mail, ShieldAlert, Loader2, Building, User, Phone } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirectTo');
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -61,7 +63,9 @@ export default function LoginClient() {
       if (res.success) {
         if (res.immediate) {
           // Redirigir inmediatamente según el rol del usuario
-          if (res.role === 'ADMIN' || res.role === 'CONSULTANT') {
+          if (redirectTo) {
+            router.push(redirectTo);
+          } else if (res.role === 'ADMIN' || res.role === 'CONSULTANT') {
             router.push('/dashboard');
           } else {
             router.push('/pwa');
@@ -167,7 +171,7 @@ export default function LoginClient() {
     setError('');
 
     try {
-      const res = await verifyOtpAction(email, otpCode);
+      const res = await verifyOtpAction(email, otpCode, redirectTo);
       if (res && !res.success) {
         setError(res.message);
       }

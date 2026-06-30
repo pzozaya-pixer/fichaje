@@ -25,7 +25,7 @@ export async function requestOtpAction(prevState: any, formData: FormData): Prom
   return result;
 }
 
-export async function verifyOtpAction(email: string, otpCode: string) {
+export async function verifyOtpAction(email: string, otpCode: string, redirectTo?: string | null) {
   if (!email || !otpCode) {
     return { success: false, message: 'Todos los campos son obligatorios.' };
   }
@@ -33,7 +33,9 @@ export async function verifyOtpAction(email: string, otpCode: string) {
   const result = await verifyOTP(email, otpCode);
 
   if (result.success) {
-    if (result.role === 'ADMIN' || result.role === 'CONSULTANT') {
+    if (redirectTo) {
+      redirect(redirectTo);
+    } else if (result.role === 'ADMIN' || result.role === 'CONSULTANT') {
       redirect('/dashboard');
     } else {
       redirect('/pwa');
