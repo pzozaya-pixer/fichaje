@@ -964,11 +964,11 @@ export default function ConfigClient({
                   Móvil
                 </span>
                 <span style={{ fontWeight: 600, fontSize: '15px', marginTop: '4px' }}>Aplicación de Fichaje (PWA)</span>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>https://apps.agenciapixer.es/fichaje/pwa</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>https://apps.agenciapixer.es/fichaje/pwa/</span>
               </div>
               <div style={{ padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent('https://apps.agenciapixer.es/fichaje/pwa')}`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent('https://apps.agenciapixer.es/fichaje/pwa/')}`}
                   alt="QR Aplicación PWA" 
                   width="180" 
                   height="180" 
@@ -976,7 +976,7 @@ export default function ConfigClient({
                 />
               </div>
               <button 
-                onClick={() => printQrCode('https://apps.agenciapixer.es/fichaje/pwa', 'Aplicación de Fichaje (PWA)')}
+                onClick={() => printQrCode('https://apps.agenciapixer.es/fichaje/pwa/', 'Aplicación de Fichaje (PWA)')}
                 className="btn btn-secondary" 
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
