@@ -1,6 +1,4 @@
-'use server';
-
-import React from 'react';
+import React, { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import LoginClient from './LoginClient';
@@ -18,7 +16,13 @@ export default async function LoginPage() {
 
   return (
     <main className="login-container">
-      <LoginClient />
+      <Suspense fallback={
+        <div className="login-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+          <p style={{ color: 'var(--text-secondary)' }}>Cargando acceso...</p>
+        </div>
+      }>
+        <LoginClient />
+      </Suspense>
     </main>
   );
 }
