@@ -199,6 +199,12 @@ export default function LoginClient() {
         </p>
       </div>
 
+      {redirectTo && redirectTo.includes('pwa') && step === 1 && (
+        <div className="pwa-geo-status in-range" style={{ margin: '0 0 16px 0', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', borderLeft: '4px solid #22c55e', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span>📲 Accediendo a la aplicación móvil. Inicia sesión para continuar.</span>
+        </div>
+      )}
+
       {error && (
         <div className="pwa-geo-status out-range" style={{ margin: '0 0 16px 0' }}>
           <ShieldAlert size={18} />
