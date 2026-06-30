@@ -759,3 +759,109 @@ button {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(26, 102, 255, 0.2);
 }
+
+/* --- RESPONSIVE DASHBOARD LAYOUT & GRID UTILITIES --- */
+.responsive-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+/* Ocultar el botón de logout móvil por defecto */
+.mobile-logout-form {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .admin-layout {
+    flex-direction: column;
+  }
+
+  .admin-sidebar {
+    width: 100%;
+    height: auto;
+    position: sticky;
+    top: 0;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .sidebar-header {
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .mobile-logout-form {
+    display: block;
+    margin-left: auto;
+  }
+
+  .mobile-logout-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: var(--radius-md);
+    transition: background var(--transition-fast);
+  }
+  
+  .mobile-logout-btn:hover {
+    background-color: rgba(239, 68, 68, 0.08);
+  }
+
+  .sidebar-menu {
+    flex-direction: row;
+    padding: 8px 16px 12px;
+    overflow-x: auto;
+    white-space: nowrap;
+    gap: 8px;
+  }
+
+  .sidebar-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .sidebar-footer {
+    display: none; /* Ocultar el perfil completo y el logout del menú inferior en móvil */
+  }
+
+  .admin-main {
+    padding: 24px 16px;
+    gap: 24px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .responsive-grid-3, .responsive-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ajustes para tablas responsivas */
+.table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.premium-table {
+  min-width: 700px; /* Evita que las columnas de las tablas se aplasten en pantallas móviles */
+}

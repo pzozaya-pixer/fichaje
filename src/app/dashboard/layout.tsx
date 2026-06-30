@@ -49,6 +49,12 @@ export default async function DashboardLayout({
             <Clock size={24} />
             <span>Fichaje.click</span>
           </div>
+          {/* Botón de cerrar sesión rápido para móviles */}
+          <form action={logoutAction} className="mobile-logout-form">
+            <button type="submit" className="mobile-logout-btn" title="Cerrar sesión">
+              <LogOut size={18} />
+            </button>
+          </form>
         </div>
 
         <nav className="sidebar-menu">

@@ -1,6 +1,20 @@
 import { Workbook } from 'exceljs';
 import PDFDocument from 'pdfkit';
 
+function formatDateDMA(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}-${month}-${year}`;
+}
+
+function formatDurationHM(ms: number): string {
+  const totalMinutes = Math.floor(ms / (1000 * 60));
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const minutes = String(totalMinutes % 60).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
 // Estructura de datos esperada para los fichajes en los exportadores
 export interface ClockInExportData {
   employeeName: string;
@@ -88,15 +102,15 @@ export async function generateExcelReport(
 
   // Añadir los datos de los fichajes
   clockIns.forEach((f) => {
-    const dateStr = f.entryTime.toLocaleDateString('es-ES');
+    const dateStr = formatDateDMA(f.entryTime);
     const entryStr = f.entryTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     const exitStr = f.exitTime
       ? f.exitTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
       : 'Pendiente';
 
     const breaksMin = Math.round(f.breakMs / (1000 * 60));
-    const hoursNet = f.durationMs / (1000 * 60 * 60);
-    const extraHours = hoursNet > 8 ? hoursNet - 8 : 0;
+    const hoursNet = formatDurationHM(f.durationMs);
+    const extraHours = f.durationMs > 8 * 3600 * 1000 ? formatDurationHM(f.durationMs - 8 * 3600 * 1000) : '00:00';
 
     const row = worksheet.addRow({
       name: f.employeeName,
@@ -106,8 +120,8 @@ export async function generateExcelReport(
       entry: entryStr,
       exit: exitStr,
       breaks: breaksMin,
-      hours: parseFloat(hoursNet.toFixed(2)),
-      extra: parseFloat(extraHours.toFixed(2)),
+      hours: hoursNet,
+      extra: extraHours,
       type: f.isManual ? 'Manual' : 'Presencial (GPS)',
     });
 
@@ -248,26 +262,28 @@ export async function generatePDFReport(
         doc.fillColor('#F8FAFC').rect(40, y, 515, rowHeight).fill();
       }
 
-      const dateStr = f.entryTime.toLocaleDateString('es-ES');
+      const dateStr = formatDateDMA(f.entryTime);
       const entryStr = f.entryTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
       const exitStr = f.exitTime
         ? f.exitTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
         : 'Pendiente';
 
       const breaksMin = Math.round(f.breakMs / (1000 * 60));
-      const hoursNet = f.durationMs / (1000 * 60 * 60);
-      const extraHours = hoursNet > 8 ? hoursNet - 8 : 0;
+      const hoursNet = formatDurationHM(f.durationMs);
+      const extraHours = f.durationMs > 8 * 3600 * 1000 ? formatDurationHM(f.durationMs - 8 * 3600 * 1000) : '00:00';
 
       totalWorkedMs += f.durationMs;
-      totalExtraMs += extraHours * 1000 * 60 * 60;
+      if (f.durationMs > 8 * 3600 * 1000) {
+        totalExtraMs += f.durationMs - 8 * 3600 * 1000;
+      }
 
       doc.fillColor('#0F172A');
       doc.text(dateStr, 45, y + 6);
       doc.text(entryStr, 120, y + 6);
       doc.text(exitStr, 200, y + 6);
       doc.text(`${breaksMin} min`, 280, y + 6);
-      doc.text(`${hoursNet.toFixed(2)}h`, 350, y + 6);
-      doc.text(`${extraHours.toFixed(2)}h`, 420, y + 6);
+      doc.text(hoursNet, 350, y + 6);
+      doc.text(extraHours, 420, y + 6);
       doc.text(f.isManual ? 'Manual' : 'Presencial', 490, y + 6);
 
       // Línea divisoria
@@ -277,14 +293,11 @@ export async function generatePDFReport(
     });
 
     // Fila de Resumen Final
-    const totalHours = totalWorkedMs / (1000 * 60 * 60);
-    const totalExtraHours = totalExtraMs / (1000 * 60 * 60);
-
     doc.fillColor('#E2E8F0').rect(40, y, 515, rowHeight).fill();
     doc.fillColor('#0F172A').font('Helvetica-Bold');
     doc.text('TOTALES', 45, y + 6);
-    doc.text(`${totalHours.toFixed(2)}h`, 350, y + 6);
-    doc.text(`${totalExtraHours.toFixed(2)}h`, 420, y + 6);
+    doc.text(formatDurationHM(totalWorkedMs), 350, y + 6);
+    doc.text(formatDurationHM(totalExtraMs), 420, y + 6);
 
     y += rowHeight + 30;
 

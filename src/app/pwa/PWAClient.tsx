@@ -340,16 +340,31 @@ export default function PWAClient({
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
 
-    return `${hours.toString().padStart(2, '0')}h ${minutes
+    return `${hours.toString().padStart(2, '0')}:${minutes
       .toString()
-      .padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
+      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const formatShortTime = (ms: number) => {
     const totalMinutes = Math.floor(ms / (1000 * 60));
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
-    return `${hours}h ${minutes}m`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  const formatDateDMA = (dateVal: string | Date | number) => {
+    const d = new Date(dateVal);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatHoursDecimal = (hoursDecimal: number) => {
+    const totalMinutes = Math.round(hoursDecimal * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
   // --- CALENDARIO HELPERS ---
@@ -497,12 +512,7 @@ export default function PWAClient({
                 Mi jornada
               </h2>
               <p style={{ fontSize: '13px', color: 'var(--pwa-text-secondary)' }}>
-                {new Date().toLocaleDateString('es-ES', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
+                {formatDateDMA(new Date())}
               </p>
             </div>
 
@@ -698,10 +708,7 @@ export default function PWAClient({
                           : 'En curso'}
                       </p>
                       <p className="pwa-fichaje-date">
-                        {new Date(f.entryTime).toLocaleDateString('es-ES', {
-                          day: 'numeric',
-                          month: 'short',
-                        })}
+                        {formatDateDMA(f.entryTime)}
                       </p>
                     </div>
                     <span className="pwa-fichaje-duration">
@@ -725,14 +732,14 @@ export default function PWAClient({
               <div className="pwa-card" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <p style={{ fontSize: '11px', color: 'var(--pwa-text-secondary)' }}>Horas trabajadas</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: 'var(--primary)' }}>
-                  {summary.hoursWorked}h
+                  {formatHoursDecimal(summary.hoursWorked)}
                 </p>
                 <p style={{ fontSize: '10px', color: 'var(--pwa-text-secondary)' }}>Este mes</p>
               </div>
               <div className="pwa-card" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <p style={{ fontSize: '11px', color: 'var(--pwa-text-secondary)' }}>Horas extra</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: 'var(--warning)' }}>
-                  {summary.extraHours}h
+                  {formatHoursDecimal(summary.extraHours)}
                 </p>
                 <p style={{ fontSize: '10px', color: 'var(--pwa-text-secondary)' }}>Pendientes</p>
               </div>
@@ -756,11 +763,7 @@ export default function PWAClient({
                         : 'En curso'}
                     </p>
                     <p className="pwa-fichaje-date">
-                      {new Date(f.entryTime).toLocaleDateString('es-ES', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                      })}
+                      {formatDateDMA(f.entryTime)}
                       {f.isManual && (
                         <span style={{ marginLeft: '8px', color: 'var(--warning)', fontSize: '10px' }}>
                           (Manual)
@@ -843,11 +846,7 @@ export default function PWAClient({
             {/* Detalles del día seleccionado */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--pwa-text-secondary)' }}>
-                Detalle del {selectedCalendarDate.toLocaleDateString('es-ES', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
+                Detalle del {formatDateDMA(selectedCalendarDate)}
               </h3>
 
               {getSelectedDayDetails().length === 0 ? (
@@ -946,11 +945,11 @@ export default function PWAClient({
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--pwa-text-secondary)' }}>Horas acumuladas</span>
-                  <span style={{ fontWeight: 600 }}>{summary.hoursWorked}h / {summary.targetHours}h</span>
+                  <span style={{ fontWeight: 600 }}>{formatHoursDecimal(summary.hoursWorked)} / {summary.targetHours}:00</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--pwa-text-secondary)' }}>Horas extra</span>
-                  <span style={{ fontWeight: 600, color: 'var(--warning)' }}>{summary.extraHours}h</span>
+                  <span style={{ fontWeight: 600, color: 'var(--warning)' }}>{formatHoursDecimal(summary.extraHours)}</span>
                 </div>
               </div>
             </div>

@@ -93,14 +93,18 @@ export default function FichajesClient({
   };
 
   const formatDate = (isoString: string) => {
-    return new Date(isoString).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    const d = new Date(isoString);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}-${month}-${year}`;
   };
 
   const formatDuration = (ms: number) => {
     const totalMinutes = Math.floor(ms / (1000 * 60));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${hours}h ${minutes}m`;
+    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+    const minutes = String(totalMinutes % 60).padStart(2, '0');
+    return `${hours}:${minutes}`;
   };
 
   // Abrir modal de fichaje manual

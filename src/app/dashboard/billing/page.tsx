@@ -31,11 +31,13 @@ export default async function BillingPage() {
         number: inv.number || 'Sin número',
         amount: (inv.amount_paid / 100).toFixed(2),
         currency: inv.currency === 'eur' ? '€' : inv.currency.toUpperCase(),
-        date: new Date(inv.created * 1000).toLocaleDateString('es-ES', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        }),
+        date: (() => {
+          const d = new Date(inv.created * 1000);
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = String(d.getFullYear()).slice(-2);
+          return `${day}-${month}-${year}`;
+        })(),
         pdfUrl: inv.invoice_pdf || null,
       }));
     } catch (err) {

@@ -555,7 +555,7 @@ export default function ConfigClient({
           )}
 
           <form onSubmit={handleSaveBillingInfo} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="responsive-grid-2">
               <div className="form-group">
                 <label className="form-label">Razón Social *</label>
                 <input
@@ -591,7 +591,7 @@ export default function ConfigClient({
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+            <div className="responsive-grid-3">
               <div className="form-group">
                 <label className="form-label">Población</label>
                 <input
@@ -664,7 +664,7 @@ export default function ConfigClient({
               Configura el envío automático de copias de seguridad de todos tus datos (empleados, fichajes y registros) por correo electrónico.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', alignItems: 'end' }}>
+            <div className="responsive-grid-3" style={{ alignItems: 'end' }}>
               <div className="form-group">
                 <label className="form-label">Envío Automático</label>
                 <select className="form-select" value={backupActive ? 'true' : 'false'} onChange={(e) => setBackupActive(e.target.value === 'true')}>
