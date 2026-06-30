@@ -28,7 +28,9 @@ import {
   X,
   Database,
   Download,
-  Upload
+  Upload,
+  QrCode,
+  Printer
 } from 'lucide-react';
 
 interface WorkCenter {
@@ -258,6 +260,80 @@ export default function ConfigClient({
       setRestoreError('Ocurrió un error al procesar el archivo.');
       setRestoreLoading(false);
     }
+  };
+
+  const printQrCode = (url: string, title: string) => {
+    const printWindow = window.open('', '_blank', 'width=600,height=600');
+    if (!printWindow) {
+      alert('Por favor, permite las ventanas emergentes (popups) para poder imprimir el código QR.');
+      return;
+    }
+    
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Imprimir QR - ${title}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              text-align: center;
+            }
+            h2 {
+              margin-top: 0;
+              margin-bottom: 5px;
+              color: #0f172a;
+              font-size: 24px;
+            }
+            p {
+              color: #475569;
+              margin-bottom: 25px;
+              font-size: 14px;
+              word-break: break-all;
+            }
+            img {
+              border: 1px solid #e2e8f0;
+              padding: 15px;
+              border-radius: 8px;
+              background-color: white;
+            }
+            @media print {
+              body {
+                height: auto;
+              }
+              .no-print {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <h2>${title}</h2>
+          <p>${url}</p>
+          <img src="${qrImageUrl}" alt="Código QR" width="300" height="300" />
+          <script>
+            const img = document.querySelector('img');
+            if (img.complete) {
+              window.print();
+              window.close();
+            } else {
+              img.onload = function() {
+                window.print();
+                window.close();
+              };
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handleSaveBillingInfo = async (e: React.FormEvent) => {
@@ -818,6 +894,70 @@ export default function ConfigClient({
                 Restaurar Datos
               </button>
             </form>
+          </div>
+        </div>
+
+        {/* SECCIÓN: CÓDIGOS QR DE ACCESO */}
+        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+            <QrCode size={20} style={{ color: 'var(--primary)' }} />
+            <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Códigos QR de Acceso</h3>
+          </div>
+          
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+            Descarga o imprime estos códigos QR para facilitar el acceso de tus empleados a la plataforma desde sus dispositivos móviles.
+          </p>
+
+          <div className="responsive-grid-2" style={{ marginTop: '8px' }}>
+            {/* QR 1: Acceso Web / Registro */}
+            <div className="pwa-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '24px', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                <span style={{ fontWeight: 600, fontSize: '15px' }}>Plataforma Web (Registro / Admin)</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>https://apps.agenciapixer.es/fichaje</span>
+              </div>
+              <div style={{ padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <img 
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fapps.agenciapixer.es%2Ffichaje" 
+                  alt="QR Plataforma Web" 
+                  width="180" 
+                  height="180" 
+                  style={{ display: 'block' }}
+                />
+              </div>
+              <button 
+                onClick={() => printQrCode('https://apps.agenciapixer.es/fichaje', 'Plataforma Web (Registro / Admin)')}
+                className="btn btn-secondary" 
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <Printer size={16} />
+                Imprimir QR
+              </button>
+            </div>
+
+            {/* QR 2: Aplicación Móvil (PWA) */}
+            <div className="pwa-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '24px', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                <span style={{ fontWeight: 600, fontSize: '15px' }}>Aplicación de Fichaje (PWA)</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>https://apps.agenciapixer.es/fichaje/pwa</span>
+              </div>
+              <div style={{ padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <img 
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fapps.agenciapixer.es%2Ffichaje%2Fpwa" 
+                  alt="QR Aplicación PWA" 
+                  width="180" 
+                  height="180" 
+                  style={{ display: 'block' }}
+                />
+              </div>
+              <button 
+                onClick={() => printQrCode('https://apps.agenciapixer.es/fichaje/pwa', 'Aplicación de Fichaje (PWA)')}
+                className="btn btn-secondary" 
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <Printer size={16} />
+                Imprimir QR
+              </button>
+            </div>
           </div>
         </div>
 
