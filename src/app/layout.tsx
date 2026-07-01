@@ -4,15 +4,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Fichaje.click - Control Horario",
   description: "Sistema de control horario de jornada laboral y geolocalización de empleados.",
-  manifest: "/fichaje/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Fichaje.click",
-  },
   icons: {
     icon: "/fichaje/icono.png",
-    apple: "/fichaje/icono.png",
   },
 };
 
@@ -31,32 +24,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <head>
-        {/* Registro del Service Worker */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                function registerSW() {
-                  navigator.serviceWorker.register('/fichaje/sw.js').then(
-                    function(registration) {
-                      console.log('PWA: ServiceWorker registrado con éxito. Scope:', registration.scope);
-                    },
-                    function(err) {
-                      console.log('PWA: Error al registrar el ServiceWorker:', err);
-                    }
-                  );
-                }
-                if (document.readyState === 'complete') {
-                  registerSW();
-                } else {
-                  window.addEventListener('load', registerSW);
-                }
-              }
-            `,
-          }}
-        />
-      </head>
       <body>
         {children}
       </body>

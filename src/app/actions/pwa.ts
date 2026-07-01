@@ -141,7 +141,7 @@ export async function clockInAction(lat: number, lng: number) {
       },
     });
 
-    revalidatePath('/pwa');
+    revalidatePath('/movil');
     return { success: true, message: 'Fichaje de entrada registrado correctamente.' };
   } catch (error) {
     console.error(error);
@@ -208,7 +208,7 @@ export async function clockOutAction(lat: number, lng: number) {
       },
     });
 
-    revalidatePath('/pwa');
+    revalidatePath('/movil');
     return { success: true, message: 'Fichaje de salida registrado correctamente.' };
   } catch (error) {
     console.error(error);
@@ -248,7 +248,7 @@ export async function startBreakAction() {
       },
     });
 
-    revalidatePath('/pwa');
+    revalidatePath('/movil');
     return { success: true, message: 'Pausa iniciada.' };
   } catch (error) {
     return { success: false, message: 'Error al iniciar la pausa.' };
@@ -288,7 +288,7 @@ export async function endBreakAction() {
       },
     });
 
-    revalidatePath('/pwa');
+    revalidatePath('/movil');
     return { success: true, message: 'Pausa finalizada.' };
   } catch (error) {
     return { success: false, message: 'Error al finalizar la pausa.' };

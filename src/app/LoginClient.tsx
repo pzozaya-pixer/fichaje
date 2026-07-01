@@ -69,7 +69,7 @@ export default function LoginClient() {
           } else if (res.role === 'ADMIN' || res.role === 'CONSULTANT') {
             router.push('/dashboard');
           } else {
-            router.push('/pwa');
+            router.push('/movil');
           }
         } else {
           setStep(2);
@@ -199,9 +199,9 @@ export default function LoginClient() {
         </p>
       </div>
 
-      {redirectTo && redirectTo.includes('pwa') && step === 1 && (
+      {redirectTo && redirectTo.includes('movil') && step === 1 && (
         <div className="pwa-geo-status in-range" style={{ margin: '0 0 16px 0', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', borderLeft: '4px solid #22c55e', display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span>📲 Accediendo a la aplicación móvil. Inicia sesión para continuar.</span>
+          <span>📲 Accediendo a la versión móvil. Inicia sesión para continuar.</span>
         </div>
       )}
 

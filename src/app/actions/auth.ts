@@ -39,7 +39,7 @@ export async function verifyOtpAction(email: string, otpCode: string, redirectTo
     } else if (result.role === 'ADMIN' || result.role === 'CONSULTANT') {
       redirect('/dashboard');
     } else {
-      redirect('/pwa');
+      redirect('/movil');
     }
   }
 

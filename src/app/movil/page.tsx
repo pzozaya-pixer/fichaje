@@ -3,14 +3,14 @@ export const dynamic = 'force-dynamic';
 import { getCurrentUser } from '@/lib/auth';
 import { getTodayStatus, getMyFichajes, getMySummary } from '@/app/actions/pwa';
 import { redirect } from 'next/navigation';
-import PWAClient from './PWAClient';
+import MovilClient from './MovilClient';
 
 export default async function PWAPage() {
   const user = await getCurrentUser();
 
   // Redirigir si no está autenticado
   if (!user) {
-    redirect('/?redirectTo=pwa/');
+    redirect('/?redirectTo=movil/');
   }
 
   // Redirigir si la suscripción de la empresa ha expirado
@@ -24,7 +24,7 @@ export default async function PWAPage() {
   const summary = await getMySummary();
 
   return (
-    <PWAClient
+    <MovilClient
       user={{
         id: user.id,
         name: user.name,

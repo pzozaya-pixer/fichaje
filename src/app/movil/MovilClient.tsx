@@ -32,7 +32,7 @@ import {
   BookOpen
 } from 'lucide-react';
 
-interface PWAClientProps {
+interface MovilClientProps {
   user: {
     id: string;
     name: string;
@@ -59,12 +59,12 @@ interface PWAClientProps {
   initialSummary: any;
 }
 
-export default function PWAClient({
+export default function MovilClient({
   user,
   initialTodayStatus,
   initialFichajes,
   initialSummary,
-}: PWAClientProps) {
+}: MovilClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<0 | 1 | 2 | 3>(0);
   const [todayStatus, setTodayStatus] = useState(initialTodayStatus);
