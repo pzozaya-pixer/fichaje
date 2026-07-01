@@ -119,13 +119,8 @@ export default function ConfigClient({
     setHolidayLoading(true);
     try {
       const res = await createHoliday(holidayDate, holidayName.trim());
-      if (res.success) {
-        const newHoliday = {
-          id: Math.random().toString(), // ID Temporal local
-          date: new Date(`${holidayDate}T00:00:00`).toISOString(),
-          name: holidayName.trim(),
-        };
-        setHolidays([...holidays, newHoliday].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      if (res.success && (res as any).holiday) {
+        setHolidays([...holidays, (res as any).holiday].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
         setHolidayDate('');
         setHolidayName('');
       } else {

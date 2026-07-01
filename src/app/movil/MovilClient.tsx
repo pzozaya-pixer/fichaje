@@ -452,16 +452,17 @@ export default function MovilClient({
     setVacSuccessMsg('');
     try {
       const res = await requestVacation(vacStart, vacEnd, vacType, vacDaysPreview, vacNotes);
-      if (res.success) {
+      if (res.success && (res as any).vacation) {
         setVacSuccessMsg('Solicitud enviada correctamente. Esperando aprobación.');
+        const serverVac = (res as any).vacation;
         const newVac: MovilVacation = {
-          id: Math.random().toString(),
-          startDate: new Date(`${vacStart}T00:00:00`).toISOString(),
-          endDate: new Date(`${vacEnd}T23:59:59.999`).toISOString(),
-          type: vacType,
-          daysCount: vacDaysPreview,
-          status: 'PENDING',
-          notes: vacNotes,
+          id: serverVac.id,
+          startDate: serverVac.startDate,
+          endDate: serverVac.endDate,
+          type: serverVac.type,
+          daysCount: serverVac.daysCount,
+          status: serverVac.status,
+          notes: serverVac.notes,
         };
         setVacations([newVac, ...vacations]);
         setVacSummary({

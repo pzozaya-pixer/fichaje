@@ -17,8 +17,8 @@ export async function requestVacation(
   if (!user) return { success: false, message: 'No autenticado.' };
 
   try {
-    const start = new Date(`${startDateStr}T00:00:00`);
-    const end = new Date(`${endDateStr}T23:59:59.999`);
+    const start = new Date(`${startDateStr}T00:00:00Z`);
+    const end = new Date(`${endDateStr}T23:59:59.999Z`);
 
     if (start > end) {
       return { success: false, message: 'La fecha de inicio debe ser anterior a la de fin.' };
@@ -45,7 +45,7 @@ export async function requestVacation(
       };
     }
 
-    await prisma.vacation.create({
+    const newVac = await prisma.vacation.create({
       data: {
         startDate: start,
         endDate: end,
@@ -60,7 +60,19 @@ export async function requestVacation(
 
     revalidatePath('/movil');
     revalidatePath('/dashboard/vacations');
-    return { success: true, message: 'Solicitud de vacaciones enviada correctamente.' };
+    return { 
+      success: true, 
+      message: 'Solicitud de vacaciones enviada correctamente.',
+      vacation: {
+        id: newVac.id,
+        startDate: newVac.startDate.toISOString(),
+        endDate: newVac.endDate.toISOString(),
+        type: newVac.type,
+        daysCount: newVac.daysCount,
+        status: newVac.status,
+        notes: newVac.notes || '',
+      }
+    };
   } catch (error) {
     console.error(error);
     return { success: false, message: 'Error al enviar la solicitud.' };
@@ -178,15 +190,15 @@ export async function assignVacationDirect(
   }
 
   try {
-    const start = new Date(`${startDateStr}T00:00:00`);
-    const end = new Date(`${endDateStr}T23:59:59.999`);
+    const start = new Date(`${startDateStr}T00:00:00Z`);
+    const end = new Date(`${endDateStr}T23:59:59.999Z`);
 
     if (start > end) {
       return { success: false, message: 'La fecha de inicio debe ser anterior a la de fin.' };
     }
 
     // Guardar directamente como APPROVED
-    await prisma.vacation.create({
+    const newVac = await prisma.vacation.create({
       data: {
         startDate: start,
         endDate: end,
@@ -202,7 +214,19 @@ export async function assignVacationDirect(
 
     revalidatePath('/movil');
     revalidatePath('/dashboard/vacations');
-    return { success: true, message: 'Vacaciones asignadas correctamente.' };
+    return { 
+      success: true, 
+      message: 'Vacaciones asignadas correctamente.',
+      vacation: {
+        id: newVac.id,
+        startDate: newVac.startDate.toISOString(),
+        endDate: newVac.endDate.toISOString(),
+        type: newVac.type,
+        daysCount: newVac.daysCount,
+        status: newVac.status,
+        notes: newVac.notes || '',
+      }
+    };
   } catch (error) {
     console.error(error);
     return { success: false, message: 'Error al asignar las vacaciones.' };

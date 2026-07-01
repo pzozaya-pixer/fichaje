@@ -23,9 +23,9 @@ export async function createHoliday(dateStr: string, name: string) {
   }
 
   try {
-    const parsedDate = new Date(`${dateStr}T00:00:00`);
+    const parsedDate = new Date(`${dateStr}T00:00:00Z`);
     
-    await prisma.holiday.create({
+    const newHoliday = await prisma.holiday.create({
       data: {
         date: parsedDate,
         name,
@@ -35,7 +35,15 @@ export async function createHoliday(dateStr: string, name: string) {
 
     revalidatePath('/dashboard/config');
     revalidatePath('/movil');
-    return { success: true, message: 'Festivo creado correctamente.' };
+    return { 
+      success: true, 
+      message: 'Festivo creado correctamente.',
+      holiday: {
+        id: newHoliday.id,
+        date: newHoliday.date.toISOString(),
+        name: newHoliday.name
+      }
+    };
   } catch (error: any) {
     console.error(error);
     if (error.code === 'P2002') {

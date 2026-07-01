@@ -138,19 +138,20 @@ export default function VacationsClient({ initialVacations, employees: initialEm
     setAssignSuccess('');
     try {
       const res = await assignVacationDirect(assignEmployeeId, assignStart, assignEnd, assignType, assignDays, assignNotes);
-      if (res.success) {
+      if (res.success && (res as any).vacation) {
         setAssignSuccess('Vacaciones asignadas y aprobadas correctamente.');
         
         // Consultar de nuevo localmente o insertar
         const empObj = employees.find(e => e.id === assignEmployeeId);
+        const serverVac = (res as any).vacation;
         const newVacation: Vacation = {
-          id: Math.random().toString(),
-          startDate: new Date(`${assignStart}T00:00:00`).toISOString(),
-          endDate: new Date(`${assignEnd}T23:59:59.999`).toISOString(),
-          type: assignType,
-          daysCount: assignDays,
-          status: 'APPROVED',
-          notes: assignNotes || 'Asignado directamente por RRHH',
+          id: serverVac.id,
+          startDate: serverVac.startDate,
+          endDate: serverVac.endDate,
+          type: serverVac.type,
+          daysCount: serverVac.daysCount,
+          status: serverVac.status,
+          notes: serverVac.notes || 'Asignado directamente por RRHH',
           createdAt: new Date().toISOString(),
           user: {
             id: assignEmployeeId,
@@ -160,7 +161,7 @@ export default function VacationsClient({ initialVacations, employees: initialEm
           },
           resolvedBy: { name: 'Administrador' }
         };
-        setVacations([newHolidayToVacation(newVacation), ...vacations]);
+        setVacations([newVacation, ...vacations]);
         
         // Reset
         setAssignStart('');
