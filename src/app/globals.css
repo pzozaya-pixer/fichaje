@@ -249,7 +249,8 @@ button {
 /* Estructura para Web de Administración (RRHH) */
 .admin-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background-color: var(--bg-primary);
 }
 
@@ -260,8 +261,6 @@ button {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
   height: 100vh;
   z-index: 50;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
@@ -781,6 +780,13 @@ button {
 @media (max-width: 1024px) {
   .admin-layout {
     flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  .admin-main {
+    height: auto;
+    overflow: visible;
   }
 
   .admin-sidebar {
