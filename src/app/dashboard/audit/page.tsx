@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { ShieldAlert, User, Calendar, FileText } from 'lucide-react';
+import PrintButton from './PrintButton';
 
 export default async function AuditPage() {
   const user = await getCurrentUser();
@@ -61,13 +62,14 @@ export default async function AuditPage() {
   return (
     <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* CABECERA */}
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '16px' }}>
         <div>
           <h1 className="page-title">Auditoría y Registro de Cambios</h1>
           <p className="page-subtitle">
             Registro legal obligatorio según el RD-Ley 8/2019 de todas las modificaciones manuales de jornada.
           </p>
         </div>
+        <PrintButton />
       </div>
 
       {/* AVISO LEGAL DE LA LEY ESPAÑOLA */}

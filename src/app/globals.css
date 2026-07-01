@@ -909,3 +909,86 @@ button {
 .premium-table {
   min-width: 700px; /* Evita que las columnas de las tablas se aplasten en pantallas móviles */
 }
+
+/* Estilos de Impresión Profesional (Exportar a papel o PDF) */
+@media print {
+  /* Ocultar elementos innecesarios */
+  .admin-sidebar,
+  .no-print,
+  .mobile-logout-form,
+  .mobile-logout-btn,
+  .sidebar-sub-menu-container {
+    display: none !important;
+  }
+
+  /* Ajustar la estructura de la página para impresión completa */
+  .admin-layout {
+    display: block !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  .admin-main {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Eliminar sombras y bordes de las tarjetas */
+  .premium-card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  /* Asegurar que las tablas ocupen todo el ancho y no se recorten */
+  .table-container {
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  .premium-table {
+    width: 100% !important;
+    min-width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  .premium-table tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  .premium-table th, 
+  .premium-table td {
+    border: 1px solid #94a3b8 !important;
+    padding: 8px 10px !important;
+    color: black !important;
+    font-size: 11px !important;
+    background: white !important;
+    text-align: left !important;
+  }
+
+  .premium-table th {
+    background-color: #f1f5f9 !important;
+    font-weight: 700 !important;
+  }
+
+  /* Simplificar badges para impresión en escala de grises */
+  .badge {
+    border: 1px solid #94a3b8 !important;
+    background: none !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    padding: 2px 6px !important;
+    font-weight: 500 !important;
+  }
+}
