@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { logoutAction } from '@/app/actions/auth';
 import Link from 'next/link';
 import SidebarLink from './SidebarLink';
+import ConfigMenu from './ConfigMenu';
 import {
   Clock,
   Home,
@@ -94,10 +95,7 @@ export default async function DashboardLayout({
                 <span>Facturación</span>
               </SidebarLink>
               
-              <SidebarLink href="/dashboard/config">
-                <Settings size={18} />
-                <span>Configuración</span>
-              </SidebarLink>
+              <ConfigMenu />
             </>
           )}
         </nav>

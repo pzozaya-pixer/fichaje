@@ -573,7 +573,7 @@ export default function ConfigClient({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '32px' }}>
         
         {/* SECCIÓN 1: FACTURACIÓN Y PLANES (STRIPE) */}
-        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div id="planes" className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <CreditCard size={20} style={{ color: 'var(--primary)' }} />
             <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Planes y Suscripción (Stripe)</h3>
@@ -685,7 +685,7 @@ export default function ConfigClient({
         </div>
 
         {/* DATOS DE FACTURACIÓN DE LA EMPRESA */}
-        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div id="facturacion" className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <Building size={20} style={{ color: 'var(--primary)' }} />
             <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Datos de Facturación (Aparecen en tus facturas)</h3>
@@ -780,7 +780,7 @@ export default function ConfigClient({
         </div>
 
         {/* COPIAS DE SEGURIDAD Y BACKUP DE DATOS */}
-        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div id="backups" className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Database size={20} style={{ color: 'var(--primary)' }} />
@@ -910,7 +910,7 @@ export default function ConfigClient({
         </div>
 
         {/* SECCIÓN: CÓDIGOS QR DE ACCESO */}
-        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div id="qr" className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <QrCode size={20} style={{ color: 'var(--primary)' }} />
             <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Códigos QR de Acceso</h3>
@@ -1004,7 +1004,7 @@ export default function ConfigClient({
         </div>
 
         {/* SECCIÓN 2: CENTROS DE TRABAJO (MULTICENTRO) */}
-        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div id="centros" className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <MapPin size={20} style={{ color: 'var(--primary)' }} />
@@ -1135,7 +1135,7 @@ export default function ConfigClient({
         </div>
 
         {/* SECCIÓN 3: DEPARTAMENTOS */}
-        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div id="departamentos" className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Building size={20} style={{ color: 'var(--primary)' }} />
