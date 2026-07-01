@@ -33,7 +33,7 @@ import {
   Printer,
   Calendar
 } from 'lucide-react';
-import { createHoliday, deleteHoliday } from '@/app/actions/holidays';
+import { createHoliday, deleteHoliday, importHolidays } from '@/app/actions/holidays';
 
 interface WorkCenter {
   id: string;
@@ -145,6 +145,93 @@ export default function ConfigClient({
     } catch (err) {
       alert('Error al eliminar el festivo.');
     }
+  };
+
+  const handleImportHolidays = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setHolidayLoading(true);
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) {
+        setHolidayLoading(false);
+        return;
+      }
+
+      let parsedList: { date: string; name: string }[] = [];
+
+      try {
+        if (file.name.endsWith('.json')) {
+          const json = JSON.parse(text);
+          if (!Array.isArray(json)) {
+            alert('El archivo JSON debe contener una lista de festivos.');
+            setHolidayLoading(false);
+            return;
+          }
+          parsedList = json.map((h: any) => {
+            const dateVal = h.date || h.fecha;
+            const nameVal = h.name || h.nombre;
+            if (!dateVal || !nameVal) {
+              throw new Error('Formato de objeto inválido en JSON. Debe incluir fecha/date y nombre/name.');
+            }
+            return { date: dateVal.trim(), name: nameVal.trim() };
+          });
+        } else if (file.name.endsWith('.csv')) {
+          const lines = text.split(/\r?\n/);
+          if (lines.length <= 1) {
+            alert('El archivo CSV está vacío.');
+            setHolidayLoading(false);
+            return;
+          }
+          let startIndex = 0;
+          const firstLine = lines[0].toLowerCase();
+          if (firstLine.includes('fecha') || firstLine.includes('date') || firstLine.includes('nombre') || firstLine.includes('name')) {
+            startIndex = 1;
+          }
+
+          for (let i = startIndex; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            const parts = line.split(/[,;]/);
+            if (parts.length >= 2) {
+              const dateVal = parts[0].replace(/['"]/g, '').trim();
+              const nameVal = parts[1].replace(/['"]/g, '').trim();
+              if (dateVal && nameVal) {
+                parsedList.push({ date: dateVal, name: nameVal });
+              }
+            }
+          }
+        } else {
+          alert('Por favor, selecciona un archivo válido en formato .json o .csv.');
+          setHolidayLoading(false);
+          return;
+        }
+
+        if (parsedList.length === 0) {
+          alert('No se encontraron registros de festivos válidos en el archivo.');
+          setHolidayLoading(false);
+          return;
+        }
+
+        const res = await importHolidays(parsedList);
+        if (res.success && res.holidays) {
+          setHolidays(res.holidays as any);
+          alert(res.message);
+        } else {
+          alert(res.message);
+        }
+      } catch (err: any) {
+        alert('Error al procesar el archivo: ' + err.message);
+      } finally {
+        setHolidayLoading(false);
+        e.target.value = '';
+      }
+    };
+
+    reader.readAsText(file);
   };
   
   // Mensajes de Stripe Checkout
@@ -1268,9 +1355,36 @@ export default function ConfigClient({
 
         {/* SECCIÓN 4: FESTIVOS DE LA EMPRESA */}
         <div id="festivos" className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-            <Calendar size={20} style={{ color: 'var(--primary)' }} />
-            <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Días Festivos de la Empresa</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Calendar size={20} style={{ color: 'var(--primary)' }} />
+              <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Días Festivos de la Empresa</h3>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label 
+                className="btn btn-secondary" 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  fontSize: '13px', 
+                  padding: '8px 12px', 
+                  cursor: 'pointer',
+                  margin: 0
+                }}
+              >
+                <Upload size={14} />
+                Importar JSON / CSV
+                <input 
+                  type="file" 
+                  accept=".json,.csv" 
+                  onChange={handleImportHolidays} 
+                  disabled={holidayLoading}
+                  style={{ display: 'none' }} 
+                />
+              </label>
+            </div>
           </div>
 
           <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>

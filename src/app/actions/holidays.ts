@@ -76,3 +76,50 @@ export async function deleteHoliday(id: string) {
     return { success: false, message: 'Error al eliminar el festivo.' };
   }
 }
+
+// Importar festivos en lote
+export async function importHolidays(holidaysList: { date: string; name: string }[]) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'ADMIN') {
+    return { success: false, message: 'No autorizado.' };
+  }
+
+  if (!Array.isArray(holidaysList) || holidaysList.length === 0) {
+    return { success: false, message: 'La lista de festivos a importar está vacía o es inválida.' };
+  }
+
+  try {
+    const dataToInsert = holidaysList.map((h) => ({
+      date: new Date(`${h.date}T00:00:00Z`),
+      name: h.name.trim(),
+      companyId: user.companyId,
+    }));
+
+    const result = await prisma.holiday.createMany({
+      data: dataToInsert,
+      skipDuplicates: true,
+    });
+
+    const updatedHolidays = await prisma.holiday.findMany({
+      where: { companyId: user.companyId },
+      orderBy: { date: 'asc' },
+    });
+
+    revalidatePath('/dashboard/config');
+    revalidatePath('/movil');
+
+    return {
+      success: true,
+      message: `Se han importado ${result.count} festivos correctamente.`,
+      count: result.count,
+      holidays: updatedHolidays.map((h) => ({
+        id: h.id,
+        date: h.date.toISOString(),
+        name: h.name,
+      })),
+    };
+  } catch (error) {
+    console.error(error);
+    return { success: false, message: 'Error al importar los festivos.' };
+  }
+}
