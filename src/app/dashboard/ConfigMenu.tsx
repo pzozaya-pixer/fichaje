@@ -12,7 +12,8 @@ import {
   Database,
   QrCode,
   MapPin,
-  Briefcase
+  Briefcase,
+  Calendar
 } from 'lucide-react';
 
 export default function ConfigMenu() {
@@ -120,6 +121,14 @@ export default function ConfigMenu() {
           >
             <Briefcase size={14} />
             <span>Departamentos</span>
+          </Link>
+
+          <Link
+            href="/dashboard/config#festivos"
+            className={`sidebar-sub-item ${isSubActive('#festivos') ? 'active' : ''}`}
+          >
+            <Calendar size={14} />
+            <span>Festivos</span>
           </Link>
         </div>
       )}

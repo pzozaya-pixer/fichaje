@@ -1,6 +1,7 @@
 import React from 'react';
 export const dynamic = 'force-dynamic';
 import { getWorkCenters, getDepartments } from '@/app/actions/admin';
+import { getHolidays } from '@/app/actions/holidays';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import ConfigClient from './ConfigClient';
@@ -15,6 +16,7 @@ export default async function ConfigPage() {
 
   const workCenters = await getWorkCenters();
   const departments = await getDepartments();
+  const holidays = await getHolidays();
 
   // Valores por defecto
   let monthlyPriceLabel = '29€';
@@ -61,6 +63,11 @@ export default async function ConfigPage() {
         radius: w.radius,
       }))}
       initialDepartments={departments}
+      initialHolidays={holidays.map((h) => ({
+        id: h.id,
+        date: h.date.toISOString(),
+        name: h.name,
+      }))}
       subscription={{
         status: user.company.subscriptionStatus,
         trialEndsAt: user.company.trialEndsAt.toISOString(),

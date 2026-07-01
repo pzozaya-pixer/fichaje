@@ -2,6 +2,8 @@ import React from 'react';
 export const dynamic = 'force-dynamic';
 import { getCurrentUser } from '@/lib/auth';
 import { getTodayStatus, getMyFichajes, getMySummary } from '@/app/actions/pwa';
+import { getMyVacations } from '@/app/actions/vacations';
+import { getHolidays } from '@/app/actions/holidays';
 import { redirect } from 'next/navigation';
 import MovilClient from './MovilClient';
 
@@ -22,6 +24,8 @@ export default async function PWAPage() {
   const todayStatus = await getTodayStatus();
   const myFichajes = await getMyFichajes();
   const summary = await getMySummary();
+  const vacationsData = await getMyVacations();
+  const holidays = await getHolidays();
 
   return (
     <MovilClient
@@ -45,6 +49,20 @@ export default async function PWAPage() {
       initialTodayStatus={todayStatus}
       initialFichajes={myFichajes}
       initialSummary={summary}
+      initialVacations={vacationsData.vacations.map((v) => ({
+        id: v.id,
+        startDate: v.startDate.toISOString(),
+        endDate: v.endDate.toISOString(),
+        type: v.type,
+        daysCount: v.daysCount,
+        status: v.status,
+        notes: v.notes || '',
+      }))}
+      vacationSummary={vacationsData.summary}
+      holidays={holidays.map((h) => ({
+        date: h.date.toISOString().split('T')[0],
+        name: h.name,
+      }))}
     />
   );
 }

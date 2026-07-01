@@ -49,6 +49,8 @@ model Company {
   workCenters          WorkCenter[]
   departments          Department[]
   workdays             WorkdaySetting[]
+  holidays             Holiday[]
+  vacations            Vacation[]
   
   // Copias de seguridad automáticas
   backupActive         Boolean           @default(false)
@@ -115,6 +117,11 @@ model User {
   // Horas contratadas
   dailyContractedHours    Float          @default(8.0)
   monthlyContractedHours  Float          @default(160.0)
+
+  // Vacaciones
+  vacationDaysAllocated   Int            @default(30)
+  vacations               Vacation[]     @relation("UserVacations")
+  resolvedVacations       Vacation[]     @relation("AdminVacations")
 }
 
 model ClockIn {
@@ -175,4 +182,51 @@ model WorkdaySetting {
   expectedHours Float    // e.g., 8.0
   companyId    String
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+enum VacationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VacationType {
+  NATURALES
+  LABORABLES
+  CONVENIO
+}
+
+model Holiday {
+  id        String   @id @default(uuid())
+  date      DateTime
+  name      String
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date, companyId])
+}
+
+model Vacation {
+  id           String         @id @default(uuid())
+  startDate    DateTime
+  endDate      DateTime
+  type         VacationType   @default(NATURALES)
+  daysCount    Int
+  status       VacationStatus @default(PENDING)
+  notes        String?
+  
+  userId       String
+  user         User           @relation("UserVacations", fields: [userId], references: [id], onDelete: Cascade)
+  
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  resolvedById String?
+  resolvedBy   User?          @relation("AdminVacations", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }

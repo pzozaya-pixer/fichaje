@@ -30,8 +30,10 @@ import {
   Download,
   Upload,
   QrCode,
-  Printer
+  Printer,
+  Calendar
 } from 'lucide-react';
+import { createHoliday, deleteHoliday } from '@/app/actions/holidays';
 
 interface WorkCenter {
   id: string;
@@ -47,9 +49,16 @@ interface Department {
   name: string;
 }
 
+interface Holiday {
+  id: string;
+  date: string;
+  name: string;
+}
+
 interface ConfigClientProps {
   initialWorkCenters: WorkCenter[];
   initialDepartments: Department[];
+  initialHolidays: Holiday[];
   subscription: {
     status: string;
     trialEndsAt: string;
@@ -76,6 +85,7 @@ interface ConfigClientProps {
 export default function ConfigClient({
   initialWorkCenters,
   initialDepartments,
+  initialHolidays,
   subscription,
   company,
   companyId,
@@ -98,6 +108,49 @@ export default function ConfigClient({
 
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>(initialWorkCenters);
   const [departments, setDepartments] = useState<Department[]>(initialDepartments);
+  const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
+  const [holidayDate, setHolidayDate] = useState('');
+  const [holidayName, setHolidayName] = useState('');
+  const [holidayLoading, setHolidayLoading] = useState(false);
+
+  const handleCreateHoliday = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!holidayDate || !holidayName.trim()) return;
+    setHolidayLoading(true);
+    try {
+      const res = await createHoliday(holidayDate, holidayName.trim());
+      if (res.success) {
+        const newHoliday = {
+          id: Math.random().toString(), // ID Temporal local
+          date: new Date(`${holidayDate}T00:00:00`).toISOString(),
+          name: holidayName.trim(),
+        };
+        setHolidays([...holidays, newHoliday].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+        setHolidayDate('');
+        setHolidayName('');
+      } else {
+        alert(res.message);
+      }
+    } catch (err) {
+      alert('Error al guardar el festivo.');
+    } finally {
+      setHolidayLoading(false);
+    }
+  };
+
+  const handleDeleteHoliday = async (id: string) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar este festivo?')) return;
+    try {
+      const res = await deleteHoliday(id);
+      if (res.success) {
+        setHolidays(holidays.filter((h) => h.id !== id));
+      } else {
+        alert(res.message);
+      }
+    } catch (err) {
+      alert('Error al eliminar el festivo.');
+    }
+  };
   
   // Mensajes de Stripe Checkout
   const [stripeStatus, setStripeStatus] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' });
@@ -1215,6 +1268,114 @@ export default function ConfigClient({
             {departments.length === 0 && (
               <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>No hay departamentos creados.</p>
             )}
+          </div>
+        </div>
+
+        {/* SECCIÓN 4: FESTIVOS DE LA EMPRESA */}
+        <div id="festivos" className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+            <Calendar size={20} style={{ color: 'var(--primary)' }} />
+            <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Días Festivos de la Empresa</h3>
+          </div>
+
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+            Configura los días festivos nacionales, locales o de convenio de tu empresa. Estos días no contarán como laborables en la solicitud de vacaciones de tus empleados.
+          </p>
+
+          <form onSubmit={handleCreateHoliday} style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end', backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div className="form-group" style={{ flex: '1 1 200px', margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label className="form-label" style={{ fontSize: '13px', fontWeight: 500 }}>Fecha del Festivo</label>
+              <input
+                type="date"
+                required
+                className="form-input"
+                value={holidayDate}
+                onChange={(e) => setHolidayDate(e.target.value)}
+                style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-secondary)' }}
+              />
+            </div>
+            <div className="form-group" style={{ flex: '2 1 300px', margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label className="form-label" style={{ fontSize: '13px', fontWeight: 500 }}>Nombre / Descripción</label>
+              <input
+                type="text"
+                required
+                placeholder="Ej. Año Nuevo, Festivo Local"
+                className="form-input"
+                value={holidayName}
+                onChange={(e) => setHolidayName(e.target.value)}
+                style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-secondary)' }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={holidayLoading}
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', height: '40px', cursor: 'pointer' }}
+            >
+              {holidayLoading ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
+              Añadir
+            </button>
+          </form>
+
+          {/* Listado de festivos */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Festivos Registrados ({holidays.length})
+            </h4>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
+              {holidays.map((h) => {
+                const hDate = new Date(h.date);
+                const formattedDate = hDate.toLocaleDateString('es-ES', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                  timeZone: 'UTC' // Importante usar UTC para evitar desfases de huso horario
+                });
+                return (
+                  <div
+                    key={h.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      backgroundColor: 'var(--bg-primary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: 600, fontSize: '14px' }}>{h.name}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{formattedDate}</span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteHoliday(h.id)}
+                      className="btn-delete"
+                      style={{
+                        color: 'var(--danger)',
+                        background: 'none',
+                        border: 'none',
+                        padding: '6px',
+                        borderRadius: 'var(--radius-sm)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                      title="Eliminar festivo"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                );
+              })}
+              {holidays.length === 0 && (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontStyle: 'italic', padding: '16px 0' }}>
+                  No se han registrado festivos en la empresa.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

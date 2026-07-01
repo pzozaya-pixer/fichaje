@@ -29,8 +29,27 @@ import {
   CheckCircle,
   AlertTriangle,
   Award,
-  BookOpen
+  BookOpen,
+  CalendarCheck,
+  Loader2,
+  Plus
 } from 'lucide-react';
+import { requestVacation } from '@/app/actions/vacations';
+
+interface MovilVacation {
+  id: string;
+  startDate: string;
+  endDate: string;
+  type: 'NATURALES' | 'LABORABLES' | 'CONVENIO';
+  daysCount: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  notes: string;
+}
+
+interface MovilHoliday {
+  date: string;
+  name: string;
+}
 
 interface MovilClientProps {
   user: {
@@ -57,6 +76,14 @@ interface MovilClientProps {
   };
   initialFichajes: any[];
   initialSummary: any;
+  initialVacations: MovilVacation[];
+  vacationSummary: {
+    allocated: number;
+    approved: number;
+    pending: number;
+    remaining: number;
+  };
+  holidays: MovilHoliday[];
 }
 
 export default function MovilClient({
@@ -64,13 +91,27 @@ export default function MovilClient({
   initialTodayStatus,
   initialFichajes,
   initialSummary,
+  initialVacations,
+  vacationSummary,
+  holidays,
 }: MovilClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<0 | 1 | 2 | 3>(0);
   const [todayStatus, setTodayStatus] = useState(initialTodayStatus);
   const [fichajes, setFichajes] = useState(initialFichajes);
   const [summary, setSummary] = useState(initialSummary);
+  const [vacations, setVacations] = useState<MovilVacation[]>(initialVacations);
+  const [vacSummary, setVacSummary] = useState(vacationSummary);
   const [currentLegalDoc, setCurrentLegalDoc] = useState<string | null>(null);
+
+  // Estados para solicitar vacaciones (formulario)
+  const [vacStart, setVacStart] = useState('');
+  const [vacEnd, setVacEnd] = useState('');
+  const [vacType, setVacType] = useState<'NATURALES' | 'LABORABLES' | 'CONVENIO'>('NATURALES');
+  const [vacDaysPreview, setVacDaysPreview] = useState(0);
+  const [vacNotes, setVacNotes] = useState('');
+  const [vacLoading, setVacLoading] = useState(false);
+  const [vacSuccessMsg, setVacSuccessMsg] = useState('');
 
   // Estados de Geolocalización
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -367,6 +408,102 @@ export default function MovilClient({
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
+  // --- VACACIONES HELPERS ---
+  const getDaysDifference = (startStr: string, endStr: string, type: 'NATURALES' | 'LABORABLES' | 'CONVENIO') => {
+    if (!startStr || !endStr) return 0;
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    if (start > end) return 0;
+
+    let count = 0;
+    let curr = new Date(start);
+    const holidayDatesOnly = holidays.map((h) => h.date);
+
+    while (curr <= end) {
+      if (type === 'NATURALES') {
+        count++;
+      } else {
+        const dayOfWeek = curr.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const dateISO = curr.toISOString().split('T')[0];
+        const isHoliday = holidayDatesOnly.includes(dateISO);
+
+        if (!isWeekend && !isHoliday) {
+          count++;
+        }
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+    return count;
+  };
+
+  useEffect(() => {
+    if (vacStart && vacEnd) {
+      setVacDaysPreview(getDaysDifference(vacStart, vacEnd, vacType));
+    } else {
+      setVacDaysPreview(0);
+    }
+  }, [vacStart, vacEnd, vacType]);
+
+  const handleRequestVacation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vacStart || !vacEnd || vacDaysPreview <= 0) return;
+    setVacLoading(true);
+    setVacSuccessMsg('');
+    try {
+      const res = await requestVacation(vacStart, vacEnd, vacType, vacDaysPreview, vacNotes);
+      if (res.success) {
+        setVacSuccessMsg('Solicitud enviada correctamente. Esperando aprobación.');
+        const newVac: MovilVacation = {
+          id: Math.random().toString(),
+          startDate: new Date(`${vacStart}T00:00:00`).toISOString(),
+          endDate: new Date(`${vacEnd}T23:59:59.999`).toISOString(),
+          type: vacType,
+          daysCount: vacDaysPreview,
+          status: 'PENDING',
+          notes: vacNotes,
+        };
+        setVacations([newVac, ...vacations]);
+        setVacSummary({
+          ...vacSummary,
+          pending: vacSummary.pending + vacDaysPreview,
+          remaining: Math.max(0, vacSummary.remaining - vacDaysPreview) // temporal visual
+        });
+        setVacStart('');
+        setVacEnd('');
+        setVacNotes('');
+      } else {
+        alert(res.message);
+      }
+    } catch (err) {
+      alert('Error al enviar la solicitud.');
+    } finally {
+      setVacLoading(false);
+    }
+  };
+
+  const getSelectedDaySpecialDetails = () => {
+    const dateISO = selectedCalendarDate.toISOString().split('T')[0];
+    const holiday = holidays.find((h) => h.date === dateISO);
+
+    const vacation = vacations.find((v) => {
+      const vStart = v.startDate.split('T')[0];
+      const vEnd = v.endDate.split('T')[0];
+      return dateISO >= vStart && dateISO <= vEnd;
+    });
+
+    return { holiday, vacation };
+  };
+
+  const translateType = (type: string) => {
+    switch (type) {
+      case 'NATURALES': return 'Naturales';
+      case 'LABORABLES': return 'Laborables';
+      case 'CONVENIO': return 'Días Convenio';
+      default: return type;
+    }
+  };
+
   // --- CALENDARIO HELPERS ---
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -401,14 +538,50 @@ export default function MovilClient({
     for (let d = 1; d <= totalDays; d++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), d);
       const dateStr = date.toLocaleDateString('es-ES');
-      
+      const dateISO = date.toISOString().split('T')[0];
+
       // Comprobar si hay fichajes este día
       const hasClockInThisDay = fichajes.some(
         (f) => new Date(f.entryTime).toLocaleDateString('es-ES') === dateStr
       );
 
+      // Comprobar si es Festivo
+      const holidayObj = holidays.find((h) => h.date === dateISO);
+      const isHoliday = !!holidayObj;
+
+      // Comprobar si es vacaciones (aprobadas o pendientes)
+      const vacationObj = vacations.find((v) => {
+        const vStart = v.startDate.split('T')[0];
+        const vEnd = v.endDate.split('T')[0];
+        return dateISO >= vStart && dateISO <= vEnd;
+      });
+
       const isSelected = selectedCalendarDate.toLocaleDateString('es-ES') === dateStr;
       const isToday = new Date().toLocaleDateString('es-ES') === dateStr;
+
+      // Determinar color de fondo y texto del día
+      let bgColor = 'transparent';
+      let textColor = 'var(--pwa-text-primary)';
+      let borderStyle = 'none';
+
+      if (isSelected) {
+        bgColor = 'var(--primary)';
+        textColor = 'white';
+      } else if (isToday) {
+        bgColor = 'var(--pwa-bg-tertiary)';
+        borderStyle = '1px solid var(--primary)';
+      } else if (vacationObj) {
+        if (vacationObj.status === 'APPROVED') {
+          bgColor = 'rgba(34, 197, 94, 0.2)'; // Verde translúcido
+          textColor = '#4ade80';
+        } else if (vacationObj.status === 'PENDING') {
+          bgColor = 'rgba(245, 158, 11, 0.2)'; // Amarillo/Naranja translúcido
+          textColor = '#fbbf24';
+        }
+      } else if (isHoliday) {
+        bgColor = 'rgba(139, 92, 246, 0.2)'; // Púrpura translúcido
+        textColor = '#a78bfa';
+      }
 
       days.push(
         <button
@@ -423,13 +596,12 @@ export default function MovilClient({
             height: '42px',
             width: '100%',
             borderRadius: '50%',
-            fontWeight: isSelected || isToday ? '700' : '400',
-            backgroundColor: isSelected
-              ? 'var(--primary)'
-              : isToday
-              ? 'var(--pwa-bg-tertiary)'
-              : 'transparent',
-            color: isSelected ? 'white' : 'var(--pwa-text-primary)',
+            fontWeight: isSelected || isToday || vacationObj || isHoliday ? '700' : '400',
+            backgroundColor: bgColor,
+            color: textColor,
+            border: borderStyle,
+            outline: 'none',
+            cursor: 'pointer'
           }}
         >
           {d}
@@ -785,12 +957,48 @@ export default function MovilClient({
           </>
         )}
 
-        {/* TAB 2: CALENDARIO */}
+        {/* TAB 2: CALENDARIO Y VACACIONES */}
         {activeTab === 2 && (
           <>
             <h2 style={{ fontSize: '24px', fontFamily: 'var(--font-title)', fontWeight: 700 }}>
-              Calendario
+              Calendario y Vacaciones
             </h2>
+
+            {/* RESUMEN DE SALDO DE VACACIONES */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '8px' }}>
+              <div style={{ backgroundColor: 'var(--pwa-bg-secondary)', border: '1px solid var(--pwa-border)', borderRadius: 'var(--radius-md)', padding: '10px', textAlign: 'center' }}>
+                <p style={{ fontSize: '9px', color: 'var(--pwa-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cupo Anual</p>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: 'white', marginTop: '2px' }}>{vacSummary.allocated}d</p>
+              </div>
+              <div style={{ backgroundColor: 'var(--pwa-bg-secondary)', border: '1px solid var(--pwa-border)', borderRadius: 'var(--radius-md)', padding: '10px', textAlign: 'center' }}>
+                <p style={{ fontSize: '9px', color: 'var(--pwa-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Consumidos</p>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: '#4ade80', marginTop: '2px' }}>{vacSummary.approved}d</p>
+              </div>
+              <div style={{ backgroundColor: 'var(--pwa-bg-secondary)', border: '1px solid var(--pwa-border)', borderRadius: 'var(--radius-md)', padding: '10px', textAlign: 'center' }}>
+                <p style={{ fontSize: '9px', color: 'var(--pwa-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Disponibles</p>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary)', marginTop: '2px' }}>{vacSummary.remaining}d</p>
+              </div>
+            </div>
+
+            {/* Leyenda de Colores */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '11px', color: 'var(--pwa-text-secondary)', justifyContent: 'center', marginTop: '4px', padding: '4px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--success)' }}></span>
+                <span>Fichado</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#8b5cf6' }}></span>
+                <span>Festivo</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }}></span>
+                <span>Aprobada</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b' }}></span>
+                <span>Pendiente</span>
+              </div>
+            </div>
 
             {/* Controles de Mes */}
             <div
@@ -802,6 +1010,7 @@ export default function MovilClient({
                 padding: '12px 16px',
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--pwa-border)',
+                marginTop: '4px'
               }}
             >
               <button onClick={handlePrevMonth} style={{ padding: '4px 8px', color: 'var(--primary)', fontWeight: 'bold' }}>
@@ -849,12 +1058,54 @@ export default function MovilClient({
                 Detalle del {formatDateDMA(selectedCalendarDate)}
               </h3>
 
+              {/* Detalles especiales (Festivos / Vacaciones) */}
+              {(() => {
+                const { holiday, vacation } = getSelectedDaySpecialDetails();
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {holiday && (
+                      <div style={{ padding: '12px', backgroundColor: 'rgba(139, 92, 246, 0.12)', borderLeft: '4px solid #8b5cf6', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 600, textTransform: 'uppercase' }}>Festivo de la Empresa</span>
+                        <span style={{ fontWeight: 600, fontSize: '14px', color: 'white' }}>{holiday.name}</span>
+                      </div>
+                    )}
+                    {vacation && (
+                      <div style={{
+                        padding: '12px',
+                        backgroundColor: vacation.status === 'APPROVED' ? 'rgba(34, 197, 94, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                        borderLeft: vacation.status === 'APPROVED' ? '4px solid #22c55e' : '4px solid #f59e0b',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px'
+                      }}>
+                        <span style={{
+                          fontSize: '11px',
+                          color: vacation.status === 'APPROVED' ? '#4ade80' : '#fbbf24',
+                          fontWeight: 600,
+                          textTransform: 'uppercase'
+                        }}>
+                          Vacaciones ({vacation.status === 'APPROVED' ? 'Aprobadas' : 'Pendientes'})
+                        </span>
+                        <span style={{ fontWeight: 600, fontSize: '14px', color: 'white' }}>
+                          Tipo: {translateType(vacation.type)} ({vacation.daysCount} {vacation.daysCount === 1 ? 'día' : 'días'})
+                        </span>
+                        {vacation.notes && <span style={{ fontSize: '12px', color: 'var(--pwa-text-secondary)', fontStyle: 'italic' }}>"{vacation.notes}"</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {getSelectedDayDetails().length === 0 ? (
-                <div className="pwa-card" style={{ textAlign: 'center', padding: '24px' }}>
-                  <p style={{ fontSize: '13px', color: 'var(--pwa-text-secondary)' }}>
-                    No hay registros de fichaje para este día.
-                  </p>
-                </div>
+                // Ocultar este banner vacío si ya mostramos que es festivo o vacaciones
+                !getSelectedDaySpecialDetails().holiday && !getSelectedDaySpecialDetails().vacation && (
+                  <div className="pwa-card" style={{ textAlign: 'center', padding: '24px' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--pwa-text-secondary)' }}>
+                      No hay registros de fichaje para este día.
+                    </p>
+                  </div>
+                )
               ) : (
                 getSelectedDayDetails().map((f) => (
                   <div key={f.id} className="pwa-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -895,6 +1146,168 @@ export default function MovilClient({
                   </div>
                 ))
               )}
+            </div>
+
+            {/* FORMULARIO DE SOLICITUD DE VACACIONES */}
+            <div className="pwa-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--pwa-border)', paddingBottom: '8px' }}>
+                <CalendarCheck size={18} style={{ color: 'var(--primary)' }} />
+                <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Solicitar Tramo de Vacaciones</h3>
+              </div>
+
+              {vacSuccessMsg && (
+                <div style={{ padding: '10px 12px', backgroundColor: 'rgba(34, 197, 94, 0.12)', borderLeft: '3px solid #22c55e', borderRadius: '6px', color: '#4ade80', fontSize: '13px' }}>
+                  {vacSuccessMsg}
+                </div>
+              )}
+
+              <form onSubmit={handleRequestVacation} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', color: 'var(--pwa-text-secondary)' }}>Fecha de Inicio</label>
+                    <input
+                      type="date"
+                      required
+                      value={vacStart}
+                      onChange={(e) => setVacStart(e.target.value)}
+                      style={{
+                        padding: '8px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--pwa-border)',
+                        backgroundColor: 'var(--pwa-bg-tertiary)',
+                        color: 'white',
+                        fontSize: '13px'
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', color: 'var(--pwa-text-secondary)' }}>Fecha de Fin</label>
+                    <input
+                      type="date"
+                      required
+                      value={vacEnd}
+                      onChange={(e) => setVacEnd(e.target.value)}
+                      style={{
+                        padding: '8px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--pwa-border)',
+                        backgroundColor: 'var(--pwa-bg-tertiary)',
+                        color: 'white',
+                        fontSize: '13px'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', color: 'var(--pwa-text-secondary)' }}>Tipo de Días</label>
+                  <select
+                    value={vacType}
+                    onChange={(e) => setVacType(e.target.value as any)}
+                    style={{
+                      padding: '8px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--pwa-border)',
+                      backgroundColor: 'var(--pwa-bg-tertiary)',
+                      color: 'white',
+                      fontSize: '13px',
+                      width: '100%'
+                    }}
+                  >
+                    <option value="NATURALES">Naturales (Calendario completo)</option>
+                    <option value="LABORABLES">Laborables (Excluye sábados/domingos y festivos)</option>
+                    <option value="CONVENIO">Días de Convenio (Excluye sábados/domingos y festivos)</option>
+                  </select>
+                </div>
+
+                {vacDaysPreview > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--pwa-bg-tertiary)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--pwa-border)' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--pwa-text-secondary)' }}>Días a consumir estimados:</span>
+                    <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary)' }}>{vacDaysPreview} {vacDaysPreview === 1 ? 'día' : 'días'}</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', color: 'var(--pwa-text-secondary)' }}>Notas / Comentarios (opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Vacaciones de verano"
+                    value={vacNotes}
+                    onChange={(e) => setVacNotes(e.target.value)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--pwa-border)',
+                      backgroundColor: 'var(--pwa-bg-tertiary)',
+                      color: 'white',
+                      fontSize: '13px'
+                    }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={vacLoading || vacDaysPreview <= 0}
+                  style={{
+                    backgroundColor: 'var(--primary)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 16px',
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    marginTop: '4px'
+                  }}
+                >
+                  {vacLoading ? <Loader2 className="animate-spin" size={14} /> : <Plus size={14} />}
+                  Enviar Solicitud
+                </button>
+              </form>
+            </div>
+
+            {/* HISTORIAL DE SOLICITUDES PERSONALES */}
+            <div className="pwa-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Mis Solicitudes</h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {vacations.map((v) => (
+                  <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: 'var(--pwa-bg-secondary)', border: '1px solid var(--pwa-border)', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: 600, fontSize: '13px' }}>
+                        {formatDateDMA(new Date(v.startDate))} al {formatDateDMA(new Date(v.endDate))}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--pwa-text-secondary)' }}>
+                        {translateType(v.type)} &bull; {v.daysCount} {v.daysCount === 1 ? 'día' : 'días'}
+                      </span>
+                      {v.notes && <span style={{ fontSize: '11px', color: 'var(--pwa-text-tertiary)', fontStyle: 'italic' }}>"{v.notes}"</span>}
+                    </div>
+                    <span
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        backgroundColor: v.status === 'APPROVED' ? 'rgba(34, 197, 94, 0.12)' : v.status === 'PENDING' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                        color: v.status === 'APPROVED' ? '#4ade80' : v.status === 'PENDING' ? '#fbbf24' : '#f87171',
+                        border: '1px solid currentColor'
+                      }}
+                    >
+                      {v.status === 'APPROVED' ? 'Aprobado' : v.status === 'PENDING' ? 'Pendiente' : 'Rechazado'}
+                    </span>
+                  </div>
+                ))}
+                {vacations.length === 0 && (
+                  <p style={{ textAlign: 'center', color: 'var(--pwa-text-secondary)', fontSize: '13px', fontStyle: 'italic', padding: '12px 0' }}>
+                    No has solicitado vacaciones todavía.
+                  </p>
+                )}
+              </div>
             </div>
           </>
         )}

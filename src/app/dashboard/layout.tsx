@@ -16,7 +16,8 @@ import {
   LogOut,
   User as UserIcon,
   ShieldAlert,
-  Receipt
+  Receipt,
+  CalendarDays
 } from 'lucide-react';
 
 export default async function DashboardLayout({
@@ -74,6 +75,11 @@ export default async function DashboardLayout({
               <SidebarLink href="/dashboard/fichajes">
                 <Calendar size={18} />
                 <span>Fichajes</span>
+              </SidebarLink>
+              
+              <SidebarLink href="/dashboard/vacations">
+                <CalendarDays size={18} />
+                <span>Vacaciones</span>
               </SidebarLink>
             </>
           )}
