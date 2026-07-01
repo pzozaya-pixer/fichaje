@@ -411,8 +411,8 @@ export default function MovilClient({
   // --- VACACIONES HELPERS ---
   const getDaysDifference = (startStr: string, endStr: string, type: 'NATURALES' | 'LABORABLES' | 'CONVENIO') => {
     if (!startStr || !endStr) return 0;
-    const start = new Date(startStr);
-    const end = new Date(endStr);
+    const start = new Date(`${startStr}T00:00:00`);
+    const end = new Date(`${endStr}T00:00:00`);
     if (start > end) return 0;
 
     let count = 0;
@@ -425,7 +425,12 @@ export default function MovilClient({
       } else {
         const dayOfWeek = curr.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        const dateISO = curr.toISOString().split('T')[0];
+        
+        const year = curr.getFullYear();
+        const month = String(curr.getMonth() + 1).padStart(2, '0');
+        const day = String(curr.getDate()).padStart(2, '0');
+        const dateISO = `${year}-${month}-${day}`;
+        
         const isHoliday = holidayDatesOnly.includes(dateISO);
 
         if (!isWeekend && !isHoliday) {
@@ -484,7 +489,11 @@ export default function MovilClient({
   };
 
   const getSelectedDaySpecialDetails = () => {
-    const dateISO = selectedCalendarDate.toISOString().split('T')[0];
+    const year = selectedCalendarDate.getFullYear();
+    const month = String(selectedCalendarDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedCalendarDate.getDate()).padStart(2, '0');
+    const dateISO = `${year}-${month}-${day}`;
+
     const holiday = holidays.find((h) => h.date === dateISO);
 
     const vacation = vacations.find((v) => {
@@ -539,7 +548,10 @@ export default function MovilClient({
     for (let d = 1; d <= totalDays; d++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), d);
       const dateStr = date.toLocaleDateString('es-ES');
-      const dateISO = date.toISOString().split('T')[0];
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(d).padStart(2, '0');
+      const dateISO = `${year}-${month}-${day}`;
 
       // Comprobar si hay fichajes este día
       const hasClockInThisDay = fichajes.some(
