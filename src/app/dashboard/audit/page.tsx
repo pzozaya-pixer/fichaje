@@ -5,21 +5,46 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { ShieldAlert, User, Calendar, FileText } from 'lucide-react';
 import PrintButton from './PrintButton';
+import AuditFilter from './AuditFilter';
 
-export default async function AuditPage() {
+interface PageProps {
+  searchParams: Promise<{
+    startDate?: string;
+    endDate?: string;
+  }>;
+}
+
+export default async function AuditPage({ searchParams }: PageProps) {
   const user = await getCurrentUser();
   if (!user) redirect('/');
   if (user.role !== 'ADMIN') redirect('/dashboard');
 
-  // Obtener todos los registros de auditoría de la empresa
-  const logs = await prisma.auditLog.findMany({
-    where: {
-      clockIn: {
-        user: {
-          companyId: user.companyId,
-        },
+  const params = await searchParams;
+  const startDateStr = params.startDate;
+  const endDateStr = params.endDate;
+
+  // Filtrar cláusula where de Prisma
+  const whereClause: any = {
+    clockIn: {
+      user: {
+        companyId: user.companyId,
       },
     },
+  };
+
+  if (startDateStr || endDateStr) {
+    whereClause.changeDate = {};
+    if (startDateStr) {
+      whereClause.changeDate.gte = new Date(`${startDateStr}T00:00:00`);
+    }
+    if (endDateStr) {
+      whereClause.changeDate.lte = new Date(`${endDateStr}T23:59:59.999`);
+    }
+  }
+
+  // Obtener todos los registros de auditoría de la empresa
+  const logs = await prisma.auditLog.findMany({
+    where: whereClause,
     include: {
       clockIn: {
         include: {
@@ -92,6 +117,9 @@ export default async function AuditPage() {
           </p>
         </div>
       </div>
+
+      {/* FILTROS DE FECHA */}
+      <AuditFilter />
 
       {/* TABLA DE AUDITORÍA */}
       <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
