@@ -86,13 +86,13 @@ export default function ConfigClient({
   const searchParams = useSearchParams();
   
   const [webUrl, setWebUrl] = useState('https://apps.agenciapixer.es/fichaje');
-  const [movilUrl, setMovilUrl] = useState('https://apps.agenciapixer.es/movil/');
+  const [movilUrl, setMovilUrl] = useState('https://apps.agenciapixer.es/fichaje/movil/');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const origin = window.location.origin;
       setWebUrl(`${origin}/fichaje`);
-      setMovilUrl(`${origin}/movil/`);
+      setMovilUrl(`${origin}/fichaje/movil/`);
     }
   }, []);
 
