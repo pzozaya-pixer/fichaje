@@ -477,15 +477,18 @@ export async function getReportsData() {
   // Agrupar por día
   const daysMap: { [key: string]: number } = {};
   
+  const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const currentMonthName = monthNames[today.getMonth()];
+
   // Rellenar días del mes transcurridos
   for (let d = 1; d <= today.getDate(); d++) {
-    const dateStr = `${d} Jun`; // Simplificado para visualización
+    const dateStr = `${d} ${currentMonthName}`;
     daysMap[dateStr] = 0;
   }
 
   fichajes.forEach((f) => {
     const day = f.entryTime.getDate();
-    const dateStr = `${day} Jun`;
+    const dateStr = `${day} ${currentMonthName}`;
     if (daysMap[dateStr] !== undefined) {
       daysMap[dateStr] += f.durationMs / (1000 * 60 * 60);
     }
