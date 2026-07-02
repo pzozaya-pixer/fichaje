@@ -75,6 +75,7 @@ interface ConfigClientProps {
     backupActive: boolean;
     backupFrequency: string;
     backupEmail: string;
+    createdAt: string;
   };
   companyId: string;
   companyEmail: string;
@@ -682,6 +683,18 @@ export default function ConfigClient({
     subscription.status === 'active' ||
     subscription.status === 'past_due';
 
+  const companyRegDate = new Date(company.createdAt).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const trialEndDate = new Date(subscription.trialEndsAt).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
   return (
     <>
       {/* CABECERA */}
@@ -716,18 +729,72 @@ export default function ConfigClient({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Estado actual */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Estado de suscripción</p>
-                <p style={{ fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: hasActiveSubscription ? 'var(--success)' : 'var(--warning)' }}>
-                  {subscription.status === 'trialing' || (isTrialActive && !hasActiveSubscription) ? 'Periodo de Prueba' : hasActiveSubscription ? 'Suscripción Activa' : 'Expirada/Inactiva'}
-                </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Estado de suscripción</p>
+                  <p style={{ fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: hasActiveSubscription ? 'var(--success)' : 'var(--warning)' }}>
+                    {subscription.status === 'trialing' || (isTrialActive && !hasActiveSubscription) ? 'Periodo de Prueba' : hasActiveSubscription ? 'Suscripción Activa' : 'Expirada/Inactiva'}
+                  </p>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Fecha de alta</p>
+                  <p style={{ fontSize: '14px', fontWeight: 600, marginTop: '2px' }}>{companyRegDate}</p>
+                </div>
+                
+                {isTrialActive && (
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Días restantes libres de pago</p>
+                    <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)', marginTop: '2px' }}>{trialDaysRemaining} {trialDaysRemaining === 1 ? 'día' : 'días'}</p>
+                  </div>
+                )}
               </div>
-              
-              {isTrialActive && (
-                <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Días restantes libres de pago</p>
-                  <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)' }}>{trialDaysRemaining} días</p>
+
+              {/* AVISO DE CANCELACIÓN (Faltan 3 días o menos) */}
+              {isTrialActive && trialDaysRemaining <= 3 && (
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '8px', 
+                    padding: '12px 16px', 
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)', 
+                    border: '1px solid rgba(239, 68, 68, 0.2)', 
+                    borderRadius: '6px',
+                    marginTop: '8px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--danger)' }}>
+                    <AlertTriangle size={16} />
+                    <span style={{ fontSize: '13px', fontWeight: 700 }}>¡Atención! Tu periodo de prueba gratuito finaliza pronto</span>
+                  </div>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                    Tu acceso gratuito finaliza el **{trialEndDate}**. Recuerda que si tienes una suscripción de Stripe configurada y deseas evitar cargos automáticos, debes darla de baja antes de esta fecha.
+                  </p>
+                  {hasActiveSubscription ? (
+                    <a 
+                      href="#planes" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const el = document.getElementById('planes');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      style={{ 
+                        fontSize: '13px', 
+                        color: 'var(--danger)', 
+                        fontWeight: 600, 
+                        textDecoration: 'underline',
+                        alignSelf: 'flex-start'
+                      }}
+                    >
+                      Solicitar la baja de la suscripción ahora &rarr;
+                    </a>
+                  ) : (
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>
+                      No tienes ninguna suscripción activa contratada. Tu periodo de prueba simplemente finalizará y la cuenta se pausará, sin ningún cobro.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

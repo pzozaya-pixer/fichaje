@@ -84,6 +84,7 @@ export default async function ConfigPage() {
         backupActive: user.company.backupActive,
         backupFrequency: user.company.backupFrequency,
         backupEmail: user.company.backupEmail || '',
+        createdAt: user.company.createdAt.toISOString(),
       }}
       companyId={user.companyId}
       companyEmail={user.email}
