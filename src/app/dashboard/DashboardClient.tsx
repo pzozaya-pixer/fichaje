@@ -54,7 +54,7 @@ export default function DashboardClient({
   const chartHeight = 220;
   const paddingLeft = 40;
   const paddingRight = 20;
-  const paddingTop = 20;
+  const paddingTop = 25;
   const paddingBottom = 30;
 
   const points = data.chartData;
@@ -65,25 +65,25 @@ export default function DashboardClient({
     
     const usableWidth = chartWidth - paddingLeft - paddingRight;
     const usableHeight = chartHeight - paddingTop - paddingBottom;
+    const dayWidth = usableWidth / points.length;
+    const barWidth = Math.max(5, Math.floor(dayWidth * 0.65));
 
     return points.map((p, i) => {
-      const x = paddingLeft + (i * usableWidth) / Math.max(1, points.length - 1);
-      const y = chartHeight - paddingBottom - (p.hours * usableHeight) / maxHours;
-      return { x, y, label: p.day, value: p.hours };
+      const x = paddingLeft + i * dayWidth + (dayWidth - barWidth) / 2;
+      const barHeight = (p.hours * usableHeight) / maxHours;
+      const y = chartHeight - paddingBottom - barHeight;
+      return { 
+        x, 
+        y, 
+        width: barWidth, 
+        height: barHeight, 
+        label: p.day, 
+        value: p.hours 
+      };
     });
   };
 
   const coordsList = getCoordinates();
-  
-  // Construir el path de la línea
-  const linePath = coordsList.reduce((path, point, i) => {
-    return i === 0 ? `M ${point.x} ${point.y}` : `${path} L ${point.x} ${point.y}`;
-  }, '');
-
-  // Construir el path del área rellena (con gradiente)
-  const areaPath = coordsList.length > 0
-    ? `${linePath} L ${coordsList[coordsList.length - 1].x} ${chartHeight - paddingBottom} L ${coordsList[0].x} ${chartHeight - paddingBottom} Z`
-    : '';
 
   const isTrialActive = new Date(subscription.trialEndsAt) > new Date();
   const trialDaysRemaining = Math.max(
@@ -277,10 +277,10 @@ export default function DashboardClient({
         <div style={{ width: '100%', overflowX: 'auto' }}>
           <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ width: '100%', minWidth: '550px', height: 'auto' }}>
             <defs>
-              {/* Gradiente para el área */}
-              <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.00" />
+              {/* Gradiente para las barras */}
+              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--primary)" />
+                <stop offset="100%" stopColor="rgba(26, 102, 255, 0.4)" />
               </linearGradient>
             </defs>
 
@@ -313,46 +313,51 @@ export default function DashboardClient({
               );
             })}
 
-            {/* Área Rellena */}
-            {areaPath && <path d={areaPath} fill="url(#chartGradient)" />}
+            {/* Dibujar las barras y etiquetas */}
+            {coordsList.map((pt, i) => {
+              return (
+                <g key={i} className="chart-bar-group">
+                  {/* Barra (Solo si el valor es mayor a 0) */}
+                  {pt.value > 0 && (
+                    <>
+                      <rect
+                        x={pt.x}
+                        y={pt.y}
+                        width={pt.width}
+                        height={pt.height}
+                        rx="2"
+                        fill="url(#barGradient)"
+                        style={{ transition: 'all 0.3s ease' }}
+                      />
+                      {/* Valor numérico sobre la barra */}
+                      <text
+                        x={pt.x + pt.width / 2}
+                        y={pt.y - 6}
+                        fill="var(--text-primary)"
+                        fontSize="8"
+                        fontWeight="600"
+                        textAnchor="middle"
+                      >
+                        {pt.value}
+                      </text>
+                    </>
+                  )}
 
-            {/* Línea del Gráfico */}
-            {linePath && (
-              <path
-                d={linePath}
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
-
-            {/* Puntos y Etiquetas */}
-            {coordsList.map((pt, i) => (
-              <g key={i} className="chart-point-group">
-                <circle
-                  cx={pt.x}
-                  cy={pt.y}
-                  r="4"
-                  fill="white"
-                  stroke="var(--primary)"
-                  strokeWidth="2.5"
-                />
-                {/* Etiqueta del día en el eje X */}
-                {i % 2 === 0 && (
-                  <text
-                    x={pt.x}
-                    y={chartHeight - 10}
-                    fill="var(--text-secondary)"
-                    fontSize="9"
-                    textAnchor="middle"
-                  >
-                    {pt.label}
-                  </text>
-                )}
-              </g>
-            ))}
+                  {/* Etiqueta del día en el eje X */}
+                  {i % 2 === 0 && (
+                    <text
+                      x={pt.x + pt.width / 2}
+                      y={chartHeight - 10}
+                      fill="var(--text-secondary)"
+                      fontSize="9"
+                      textAnchor="middle"
+                    >
+                      {pt.label.split(' ')[0]}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
           </svg>
         </div>
       </div>
