@@ -87,7 +87,7 @@ export default function ReportsClient({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginTop: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginTop: '12px' }}>
         
         {/* PANEL EXCEL */}
         <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -106,7 +106,7 @@ export default function ReportsClient({
           </div>
 
           <form style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Fecha Inicio</label>
                 <input
@@ -127,7 +127,7 @@ export default function ReportsClient({
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Departamento</label>
                 <select
@@ -200,7 +200,7 @@ export default function ReportsClient({
               </select>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Fecha Inicio</label>
                 <input
