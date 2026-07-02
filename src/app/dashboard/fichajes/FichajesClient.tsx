@@ -476,7 +476,7 @@ export default function FichajesClient({
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">Fecha y Hora Entrada</label>
                   <input
@@ -550,7 +550,7 @@ export default function FichajesClient({
                 <p>Fecha Original: <strong>{formatDate(editingRecord.entryTime)}</strong></p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">Nueva Entrada</label>
                   <input

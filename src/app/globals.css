@@ -796,13 +796,13 @@ button {
 /* --- RESPONSIVE DASHBOARD LAYOUT & GRID UTILITIES --- */
 .responsive-grid-3 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 20px;
 }
 
 .responsive-grid-2 {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 20px;
 }
 
@@ -874,6 +874,7 @@ button {
     padding: 8px 12px;
     font-size: 13px;
     white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .sidebar-footer {
@@ -897,6 +898,65 @@ button {
 
   .sidebar-sub-menu-container {
     display: none !important;
+  }
+}
+
+/* Ajustes para móviles pequeños y tablets verticales */
+@media (max-width: 576px) {
+  .admin-main {
+    padding: 16px 12px;
+    gap: 20px;
+  }
+  
+  .page-title {
+    font-size: 22px;
+  }
+  
+  .page-subtitle {
+    font-size: 13px;
+  }
+  
+  .page-header {
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* Hacer que el contenedor de acciones/botones de cabecera sea full-width y se apile verticalmente */
+  .page-header > div:last-child {
+    width: 100% !important;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .page-header .btn, .page-header a.btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* Ajustes de Login para pantallas pequeñas */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 12px;
+  }
+  
+  .login-card {
+    padding: 24px 16px;
+    gap: 16px;
+  }
+  
+  .login-logo {
+    font-size: 24px;
+  }
+  
+  .login-otp-grid {
+    gap: 4px;
+  }
+  
+  .login-otp-input {
+    height: 40px;
+    font-size: 18px;
   }
 }
 
