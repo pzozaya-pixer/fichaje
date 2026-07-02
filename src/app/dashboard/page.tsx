@@ -7,7 +7,10 @@ import DashboardClient from './DashboardClient';
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  if (user?.role === 'CONSULTANT') {
+  if (!user) {
+    redirect('/');
+  }
+  if (user.role === 'CONSULTANT') {
     redirect('/dashboard/reports');
   }
 
@@ -22,6 +25,12 @@ export default async function DashboardPage() {
         name: e.name,
         email: e.email,
       }))}
+      subscription={{
+        status: user.company.subscriptionStatus,
+        trialEndsAt: user.company.trialEndsAt.toISOString(),
+        stripeSubscriptionId: user.company.stripeSubscriptionId || '',
+      }}
+      companyCreatedAt={user.company.createdAt.toISOString()}
     />
   );
 }

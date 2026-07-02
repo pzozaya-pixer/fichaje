@@ -9,7 +9,8 @@ import {
   FileText,
   TrendingUp,
   Download,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 interface DashboardClientProps {
@@ -23,9 +24,20 @@ interface DashboardClientProps {
     chartData: Array<{ day: string; hours: number }>;
   };
   employees: Array<{ id: string; name: string; email: string }>;
+  subscription: {
+    status: string;
+    trialEndsAt: string;
+    stripeSubscriptionId?: string;
+  };
+  companyCreatedAt: string;
 }
 
-export default function DashboardClient({ initialData, employees }: DashboardClientProps) {
+export default function DashboardClient({ 
+  initialData, 
+  employees,
+  subscription,
+  companyCreatedAt
+}: DashboardClientProps) {
   const [data, setData] = useState(initialData);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(employees[0]?.id || '');
   
@@ -73,6 +85,29 @@ export default function DashboardClient({ initialData, employees }: DashboardCli
     ? `${linePath} L ${coordsList[coordsList.length - 1].x} ${chartHeight - paddingBottom} L ${coordsList[0].x} ${chartHeight - paddingBottom} Z`
     : '';
 
+  const isTrialActive = new Date(subscription.trialEndsAt) > new Date();
+  const trialDaysRemaining = Math.max(
+    0,
+    Math.ceil((new Date(subscription.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+  );
+
+  const hasActiveSubscription =
+    !!subscription.stripeSubscriptionId ||
+    subscription.status === 'active' ||
+    subscription.status === 'past_due';
+
+  const companyRegDate = new Date(companyCreatedAt).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const trialEndDate = new Date(subscription.trialEndsAt).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
   return (
     <>
       {/* PÁGINA CABECERA */}
@@ -81,12 +116,65 @@ export default function DashboardClient({ initialData, employees }: DashboardCli
           <h1 className="page-title">Inicio</h1>
           <p className="page-subtitle">Panel de control de jornada laboral y estadísticas generales.</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <span className="badge badge-success" style={{ padding: '8px 16px', fontSize: '13px' }}>
-            Empresa Suscrita (15 días de prueba activos)
-          </span>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {isTrialActive ? (
+            <span className="badge badge-warning" style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Clock size={14} />
+              Periodo de prueba: {trialDaysRemaining} {trialDaysRemaining === 1 ? 'día restante' : 'días restantes'} libre de pago
+            </span>
+          ) : hasActiveSubscription ? (
+            <span className="badge badge-success" style={{ padding: '8px 16px', fontSize: '13px' }}>
+              Suscripción Activa
+            </span>
+          ) : (
+            <span className="badge badge-danger" style={{ padding: '8px 16px', fontSize: '13px' }}>
+              Suscripción Expirada
+            </span>
+          )}
         </div>
       </div>
+
+      {/* AVISO DE VENCIMIENTO DEL TRIAL (Inicio) */}
+      {isTrialActive && trialDaysRemaining <= 3 && (
+        <div 
+          style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '8px', 
+            padding: '16px', 
+            backgroundColor: 'rgba(239, 68, 68, 0.08)', 
+            border: '1px solid rgba(239, 68, 68, 0.2)', 
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '24px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--danger)' }}>
+            <AlertTriangle size={18} />
+            <span style={{ fontSize: '14px', fontWeight: 700 }}>¡Atención! Tu periodo de prueba gratuito finaliza en {trialDaysRemaining} {trialDaysRemaining === 1 ? 'día' : 'días'}</span>
+          </div>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+            Tu periodo de prueba libre de pago finaliza el **{trialEndDate}** (alta registrada el {companyRegDate}). Si tienes una suscripción activa y deseas evitar cargos automáticos, debes darla de baja antes de esta fecha.
+          </p>
+          {hasActiveSubscription ? (
+            <a 
+              href="/dashboard/config#planes" 
+              style={{ 
+                fontSize: '13px', 
+                color: 'var(--danger)', 
+                fontWeight: 600, 
+                textDecoration: 'underline',
+                alignSelf: 'flex-start'
+              }}
+            >
+              Gestionar o dar de baja la suscripción en Configuración &rarr;
+            </a>
+          ) : (
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>
+              No tienes ninguna suscripción activa contratada. Tu periodo de prueba finalizará y la cuenta se pausará automáticamente sin realizar ningún cargo. Si deseas continuar usando el servicio de forma ilimitada, puedes contratar un plan en <a href="/dashboard/config#planes" style={{ textDecoration: 'underline', color: 'var(--primary)' }}>Configuración</a>.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* TARJETAS DE MÉTRICAS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>
