@@ -208,6 +208,7 @@ export async function saveDepartment(name: string, id?: string) {
 // --- GESTIÓN E HISTORIAL DE FICHAJES ---
 
 export async function getClockIns(filters?: {
+  userId?: string;
   startDate?: string;
   endDate?: string;
   departmentId?: string;
@@ -222,6 +223,9 @@ export async function getClockIns(filters?: {
   };
 
   if (filters) {
+    if (filters.userId && filters.userId !== 'all') {
+      whereClause.userId = filters.userId;
+    }
     if (filters.startDate || filters.endDate) {
       whereClause.entryTime = {};
       if (filters.startDate) {
@@ -444,15 +448,16 @@ export async function manualClockIn(data: {
 
 // --- INFORMES Y ESTADÍSTICAS DEL PANEL ---
 
-export async function getReportsData() {
-  const admin = await checkAdminOrConsultant();
-  
+export async function getReportsData(employeeId?: string) {
+  const admin = await checkAdmin();
+
   // Obtenemos los fichajes de este mes
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
 
   const fichajes = await getClockIns({
+    userId: employeeId && employeeId !== 'all' ? employeeId : undefined,
     startDate: startOfMonth.toISOString(),
     endDate: endOfMonth.toISOString(),
   });

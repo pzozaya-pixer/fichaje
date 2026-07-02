@@ -10,8 +10,10 @@ import {
   TrendingUp,
   Download,
   AlertCircle,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
+import { getReportsData } from '@/app/actions/admin';
 
 interface DashboardClientProps {
   initialData: {
@@ -40,6 +42,23 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const [data, setData] = useState(initialData);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(employees[0]?.id || '');
+
+  // Filtro de empleado para las estadísticas del dashboard
+  const [dashboardEmployeeId, setDashboardEmployeeId] = useState('all');
+  const [loadingData, setLoadingData] = useState(false);
+
+  const handleDashboardEmployeeChange = async (employeeId: string) => {
+    setDashboardEmployeeId(employeeId);
+    setLoadingData(true);
+    try {
+      const res = await getReportsData(employeeId);
+      setData(res);
+    } catch (err) {
+      console.error('Error al cargar datos del empleado:', err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
   
   // Rango de fechas para los informes rápidos (por defecto, mes actual)
   const today = new Date();
@@ -140,6 +159,41 @@ export default function DashboardClient({
               Suscripción Expirada
             </span>
           )}
+        </div>
+      </div>
+
+      {/* FILTRO DE EMPLEADOS (DASHBOARD-WIDE) */}
+      <div 
+        className="premium-card" 
+        style={{ 
+          padding: '12px 20px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          gap: '16px', 
+          flexWrap: 'wrap',
+          marginBottom: '8px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Users size={18} style={{ color: 'var(--primary)' }} />
+          <span style={{ fontSize: '14px', fontWeight: 600 }}>Empleado en pantalla:</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {loadingData && <Loader2 className="animate-spin" size={16} style={{ color: 'var(--primary)' }} />}
+          <select
+            className="form-select"
+            value={dashboardEmployeeId}
+            onChange={(e) => handleDashboardEmployeeChange(e.target.value)}
+            style={{ width: '260px', marginBottom: 0, padding: '8px 12px' }}
+          >
+            <option value="all">Todos los empleados (Consolidado)</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.name} ({emp.email})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
