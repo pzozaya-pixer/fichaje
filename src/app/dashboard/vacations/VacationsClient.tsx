@@ -248,7 +248,19 @@ export default function VacationsClient({ initialVacations, employees: initialEm
       </div>
 
       {/* PESTAÑAS DE NAVEGACIÓN (NO SE IMPRIMEN) */}
-      <div className="no-print" style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '16px' }}>
+      <div 
+        className="no-print" 
+        style={{ 
+          display: 'flex', 
+          borderBottom: '1px solid var(--border-color)', 
+          gap: '16px',
+          overflowX: 'auto',
+          whiteSpace: 'nowrap',
+          paddingBottom: '2px',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
+        }}
+      >
         <button
           onClick={() => { setActiveTab(0); setSelectedReportEmployeeId(null); }}
           style={{
@@ -264,7 +276,8 @@ export default function VacationsClient({ initialVacations, employees: initialEm
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '8px',
+            flexShrink: 0
           }}
         >
           <Clock size={16} />
@@ -275,7 +288,7 @@ export default function VacationsClient({ initialVacations, employees: initialEm
             </span>
           )}
         </button>
-
+ 
         <button
           onClick={() => { setActiveTab(1); setSelectedReportEmployeeId(null); }}
           style={{
@@ -291,13 +304,14 @@ export default function VacationsClient({ initialVacations, employees: initialEm
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '8px',
+            flexShrink: 0
           }}
         >
           <Users size={16} />
           Resumen de Empleados
         </button>
-
+ 
         <button
           onClick={() => { setActiveTab(2); setSelectedReportEmployeeId(null); }}
           style={{
@@ -313,13 +327,14 @@ export default function VacationsClient({ initialVacations, employees: initialEm
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '8px',
+            flexShrink: 0
           }}
         >
           <Plus size={16} />
           Asignar Directamente
         </button>
-
+ 
         <button
           onClick={() => { setActiveTab(3); setSelectedReportEmployeeId(null); }}
           style={{
@@ -335,7 +350,8 @@ export default function VacationsClient({ initialVacations, employees: initialEm
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '8px',
+            flexShrink: 0
           }}
         >
           <CalendarCheck size={16} />
