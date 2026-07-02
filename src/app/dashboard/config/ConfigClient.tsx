@@ -720,14 +720,14 @@ export default function ConfigClient({
               <div>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Estado de suscripción</p>
                 <p style={{ fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: hasActiveSubscription ? 'var(--success)' : 'var(--warning)' }}>
-                  {subscription.status === 'trialing' ? 'Periodo de Prueba' : hasActiveSubscription ? 'Suscripción Activa' : 'Expirada/Inactiva'}
+                  {subscription.status === 'trialing' || (isTrialActive && !hasActiveSubscription) ? 'Periodo de Prueba' : hasActiveSubscription ? 'Suscripción Activa' : 'Expirada/Inactiva'}
                 </p>
               </div>
               
-              {subscription.status === 'trialing' && (
+              {isTrialActive && (
                 <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Días de prueba restantes</p>
-                  <p style={{ fontSize: '18px', fontWeight: 700 }}>{trialDaysRemaining} días</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Días restantes libres de pago</p>
+                  <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)' }}>{trialDaysRemaining} días</p>
                 </div>
               )}
             </div>
