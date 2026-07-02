@@ -746,7 +746,14 @@ export default function ConfigClient({
                 {isTrialActive && (
                   <div style={{ textAlign: 'right' }}>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Días restantes libres de pago</p>
-                    <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)', marginTop: '2px' }}>{trialDaysRemaining} {trialDaysRemaining === 1 ? 'día' : 'días'}</p>
+                    <p style={{ 
+                      fontSize: '18px', 
+                      fontWeight: 700, 
+                      color: trialDaysRemaining <= 3 ? 'var(--danger)' : 'var(--success)', 
+                      marginTop: '2px' 
+                    }}>
+                      {trialDaysRemaining} {trialDaysRemaining === 1 ? 'día' : 'días'}
+                    </p>
                   </div>
                 )}
               </div>

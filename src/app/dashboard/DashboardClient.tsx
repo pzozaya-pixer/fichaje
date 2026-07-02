@@ -118,7 +118,16 @@ export default function DashboardClient({
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {isTrialActive ? (
-            <span className="badge badge-warning" style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span 
+              className={trialDaysRemaining <= 3 ? "badge badge-danger" : "badge badge-success"} 
+              style={{ 
+                padding: '8px 16px', 
+                fontSize: '13px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px' 
+              }}
+            >
               <Clock size={14} />
               Periodo de prueba: {trialDaysRemaining} {trialDaysRemaining === 1 ? 'día restante' : 'días restantes'} libre de pago
             </span>
