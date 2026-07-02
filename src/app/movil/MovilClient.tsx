@@ -32,7 +32,8 @@ import {
   BookOpen,
   CalendarCheck,
   Loader2,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { requestVacation } from '@/app/actions/vacations';
 
@@ -103,6 +104,66 @@ export default function MovilClient({
   const [vacations, setVacations] = useState<MovilVacation[]>(initialVacations);
   const [vacSummary, setVacSummary] = useState(vacationSummary);
   const [currentLegalDoc, setCurrentLegalDoc] = useState<string | null>(null);
+
+  // Estados de Geolocalización (GPS)
+  const [gpsPermission, setGpsPermission] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown');
+  const [isGpsModalOpen, setIsGpsModalOpen] = useState(false);
+  const [gpsModalMode, setGpsModalMode] = useState<'enable' | 'disable'>('enable');
+
+  const updateGpsPermissionState = async () => {
+    if (typeof window === 'undefined' || !navigator.permissions || !navigator.permissions.query) {
+      setGpsPermission('unknown');
+      return;
+    }
+    try {
+      const result = await navigator.permissions.query({ name: 'geolocation' });
+      setGpsPermission(result.state);
+      result.onchange = () => {
+        setGpsPermission(result.state);
+      };
+    } catch (err) {
+      setGpsPermission('unknown');
+    }
+  };
+
+  useEffect(() => {
+    updateGpsPermissionState();
+  }, []);
+
+  const handleToggleGps = () => {
+    if (gpsPermission === 'granted') {
+      setGpsModalMode('disable');
+      setIsGpsModalOpen(true);
+    } else {
+      if (!navigator.geolocation) {
+        alert('La geolocalización no es compatible con este dispositivo.');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGpsPermission('granted');
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setCoords({ lat, lng });
+          if (user.workCenter) {
+            const dist = getDistance(lat, lng, user.workCenter.latitude, user.workCenter.longitude);
+            setDistance(Math.round(dist));
+            setIsWithinGeofence(dist <= user.workCenter.radius);
+          }
+        },
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            setGpsPermission('denied');
+            setGpsModalMode('enable');
+            setIsGpsModalOpen(true);
+          } else {
+            alert('No se pudo obtener la señal GPS.');
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  };
 
   // Estados para solicitar vacaciones (formulario)
   const [vacStart, setVacStart] = useState('');
@@ -1394,12 +1455,53 @@ export default function MovilClient({
                   <input type="checkbox" defaultChecked style={{ width: '18px', height: '18px' }} />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--pwa-border)', fontSize: '14px' }}>
+                <div 
+                  onClick={handleToggleGps}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    padding: '12px 0', 
+                    borderBottom: '1px solid var(--pwa-border)', 
+                    fontSize: '14px',
+                    cursor: 'pointer' 
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <MapPin size={18} />
+                    <MapPin size={18} style={{ color: gpsPermission === 'granted' ? 'var(--primary)' : 'var(--pwa-text-secondary)' }} />
                     <span>Permiso de ubicación (GPS)</span>
                   </div>
-                  <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 'bold' }}>Concedido</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ 
+                      fontSize: '11px', 
+                      color: gpsPermission === 'granted' ? 'var(--success)' : 'var(--pwa-text-secondary)', 
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase'
+                    }}>
+                      {gpsPermission === 'granted' ? 'Concedido' : gpsPermission === 'denied' ? 'Denegado' : 'Solicitar'}
+                    </span>
+                    <div style={{
+                      width: '36px',
+                      height: '20px',
+                      backgroundColor: gpsPermission === 'granted' ? 'var(--primary)' : 'var(--pwa-bg-tertiary)',
+                      borderRadius: '10px',
+                      position: 'relative',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid var(--pwa-border)'
+                    }}>
+                      <div style={{
+                        width: '14px',
+                        height: '14px',
+                        backgroundColor: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: gpsPermission === 'granted' ? '18px' : '3px',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                      }} />
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'stretch', padding: '12px 0', borderBottom: '1px solid var(--pwa-border)', fontSize: '14px' }}>
@@ -1625,6 +1727,88 @@ export default function MovilClient({
                 Entendido
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE INSTRUCCIONES DE GPS */}
+      {isGpsModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="pwa-card" style={{
+            maxWidth: '450px',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            padding: '24px',
+            backgroundColor: 'var(--pwa-bg-secondary)',
+            border: '1px solid var(--pwa-border)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pwa-border)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapPin size={20} style={{ color: 'var(--primary)' }} />
+                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>
+                  {gpsModalMode === 'enable' ? 'Activar Permiso GPS' : 'Desactivar Permiso GPS'}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setIsGpsModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--pwa-text-secondary)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--pwa-text-secondary)', lineHeight: 1.5, margin: 0 }}>
+              {gpsModalMode === 'enable' 
+                ? 'Para poder fichar en tu centro de trabajo, la aplicación requiere acceso a tu ubicación GPS. Sigue estas instrucciones para activarlo en tu dispositivo:'
+                : 'Debido a las políticas de seguridad del navegador, las aplicaciones web no pueden revocar permisos de ubicación programáticamente. Debes desactivarlo desde los ajustes de tu teléfono:'}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
+              <div style={{ backgroundColor: 'var(--pwa-bg-tertiary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--pwa-border)' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: 'white', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>En Dispositivos iOS (iPhone)</p>
+                <ol style={{ fontSize: '12px', color: 'var(--pwa-text-secondary)', margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <li>Abre la aplicación <strong>Ajustes</strong>.</li>
+                  <li>Ve a <strong>Privacidad y seguridad &gt; Localización</strong>.</li>
+                  <li>Selecciona tu navegador (ej. <strong>Safari</strong> o <strong>Chrome</strong>).</li>
+                  <li>Cambia la opción a <strong>{gpsModalMode === 'enable' ? 'Cuando se use la app' : 'Nunca'}</strong>.</li>
+                </ol>
+              </div>
+
+              <div style={{ backgroundColor: 'var(--pwa-bg-tertiary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--pwa-border)' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: 'white', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>En Dispositivos Android</p>
+                <ol style={{ fontSize: '12px', color: 'var(--pwa-text-secondary)', margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <li>Abre los <strong>Ajustes / Configuración</strong> del teléfono.</li>
+                  <li>Entra en <strong>Aplicaciones</strong> y selecciona tu navegador.</li>
+                  <li>Ve a <strong>Permisos &gt; Ubicación</strong>.</li>
+                  <li>Selecciona la opción <strong>{gpsModalMode === 'enable' ? 'Permitir solo si la app está en uso' : 'Denegar'}</strong>.</li>
+                </ol>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setIsGpsModalOpen(false)}
+              className="btn btn-primary"
+              style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, width: '100%', marginTop: '8px', cursor: 'pointer' }}
+            >
+              Entendido
+            </button>
           </div>
         </div>
       )}
