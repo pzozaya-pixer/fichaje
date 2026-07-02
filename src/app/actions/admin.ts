@@ -480,8 +480,9 @@ export async function getReportsData() {
   const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   const currentMonthName = monthNames[today.getMonth()];
 
-  // Rellenar días del mes transcurridos
-  for (let d = 1; d <= today.getDate(); d++) {
+  // Rellenar todos los días del mes actual (1 al último día del mes)
+  const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  for (let d = 1; d <= lastDayOfMonth; d++) {
     const dateStr = `${d} ${currentMonthName}`;
     daysMap[dateStr] = 0;
   }
