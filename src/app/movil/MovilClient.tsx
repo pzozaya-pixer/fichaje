@@ -139,7 +139,7 @@ export default function MovilClient({
         alert('La geolocalización no es compatible con este dispositivo.');
         return;
       }
-      navigator.geolocation.getCurrentPosition(
+      getCurrentPositionWithFallback(
         (pos) => {
           setGpsPermission('granted');
           const lat = pos.coords.latitude;
@@ -160,7 +160,7 @@ export default function MovilClient({
             alert('No se pudo obtener la señal GPS.');
           }
         },
-        { enableHighAccuracy: true, timeout: 5000 }
+        5000
       );
     }
   };
@@ -180,6 +180,29 @@ export default function MovilClient({
   const [distance, setDistance] = useState<number | null>(null);
   const [isWithinGeofence, setIsWithinGeofence] = useState(false);
   const [checkingGps, setCheckingGps] = useState(false);
+
+  // Obtener ubicación con reintento y fallback en caso de timeout (clave para interiores)
+  const getCurrentPositionWithFallback = (
+    onSuccess: (position: GeolocationPosition) => void,
+    onError: (error: GeolocationPositionError) => void,
+    highAccuracyTimeout = 10000
+  ) => {
+    const optionsHigh = { enableHighAccuracy: true, timeout: highAccuracyTimeout, maximumAge: 0 };
+    const optionsLow = { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 };
+
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      (err) => {
+        if (err.code === err.TIMEOUT) {
+          console.warn("GPS de alta precisión agotado. Reintentando con baja precisión (redes/celular)...");
+          navigator.geolocation.getCurrentPosition(onSuccess, onError, optionsLow);
+        } else {
+          onError(err);
+        }
+      },
+      optionsHigh
+    );
+  };
 
   // Reloj en tiempo real
   const [liveWorkedTimeMs, setLiveWorkedTimeMs] = useState(todayStatus.workedTimeMs);
@@ -219,7 +242,7 @@ export default function MovilClient({
     setCheckingGps(true);
     setGpsError('');
 
-    navigator.geolocation.getCurrentPosition(
+    getCurrentPositionWithFallback(
       (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
@@ -241,12 +264,13 @@ export default function MovilClient({
         console.error(error);
         setCheckingGps(false);
         if (error.code === error.PERMISSION_DENIED) {
-          setGpsError('Permiso de GPS denegado. Actívalo en los ajustes del navegador.');
+          setGpsError('Permiso de GPS denegado. Actívalo en los ajustes del navegador o del dispositivo.');
+          setGpsModalMode('enable');
+          setIsGpsModalOpen(true);
         } else {
           setGpsError('No se pudo obtener la señal GPS.');
         }
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+      }
     );
   };
 
@@ -279,7 +303,7 @@ export default function MovilClient({
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    getCurrentPositionWithFallback(
       async (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
@@ -313,11 +337,12 @@ export default function MovilClient({
         setCheckingGps(false);
         if (error.code === error.PERMISSION_DENIED) {
           setActionMessage({ type: 'error', text: 'Permiso de GPS denegado. Actívalo para poder fichar.' });
+          setGpsModalMode('enable');
+          setIsGpsModalOpen(true);
         } else {
           setActionMessage({ type: 'error', text: 'No se pudo obtener la ubicación GPS para fichar.' });
         }
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+      }
     );
   };
 
@@ -333,7 +358,7 @@ export default function MovilClient({
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    getCurrentPositionWithFallback(
       async (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
@@ -366,11 +391,12 @@ export default function MovilClient({
         setCheckingGps(false);
         if (error.code === error.PERMISSION_DENIED) {
           setActionMessage({ type: 'error', text: 'Permiso de GPS denegado. Actívalo para poder registrar la salida.' });
+          setGpsModalMode('enable');
+          setIsGpsModalOpen(true);
         } else {
           setActionMessage({ type: 'error', text: 'No se pudo obtener la ubicación GPS para registrar la salida.' });
         }
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+      }
     );
   };
 
@@ -386,7 +412,7 @@ export default function MovilClient({
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    getCurrentPositionWithFallback(
       async (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
@@ -419,11 +445,12 @@ export default function MovilClient({
         setCheckingGps(false);
         if (error.code === error.PERMISSION_DENIED) {
           setActionMessage({ type: 'error', text: 'Permiso de GPS denegado. Actívalo para registrar la pausa.' });
+          setGpsModalMode('enable');
+          setIsGpsModalOpen(true);
         } else {
           setActionMessage({ type: 'error', text: 'No se pudo obtener la ubicación GPS para la pausa.' });
         }
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+      }
     );
   };
 
