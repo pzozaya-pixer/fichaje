@@ -99,12 +99,12 @@ export default function EmployeesClient({
 
     console.log('Registered global drag listeners for', dragState.dayKey, dragState.mode);
 
-    const handleGlobalPointerMove = (e: PointerEvent) => {
-      const deltaX = e.clientX - dragState.startX;
+    const handleMove = (clientX: number) => {
+      const deltaX = clientX - dragState.startX;
       const deltaMins = Math.round((deltaX / dragState.containerWidth) * 1440);
       const snappedDelta = Math.round(deltaMins / 15) * 15;
 
-      console.log('Global Drag Move - deltaX:', deltaX, 'deltaMins:', deltaMins, 'snappedDelta:', snappedDelta);
+      console.log('Drag Move - deltaX:', deltaX, 'deltaMins:', deltaMins, 'snappedDelta:', snappedDelta);
 
       let newStart = dragState.initialStartMins;
       let newEnd = dragState.initialEndMins;
@@ -129,18 +129,33 @@ export default function EmployeesClient({
       }));
     };
 
-    const handleGlobalPointerUp = () => {
-      console.log('Global Drag Release');
+    const handleMouseMove = (e: MouseEvent) => {
+      handleMove(e.clientX);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) {
+        handleMove(touch.clientX);
+      }
+    };
+
+    const handleRelease = () => {
+      console.log('Drag Release');
       setDragState(null);
     };
 
-    window.addEventListener('pointermove', handleGlobalPointerMove);
-    window.addEventListener('pointerup', handleGlobalPointerUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleRelease);
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleRelease);
 
     return () => {
       console.log('Cleaned up global drag listeners');
-      window.removeEventListener('pointermove', handleGlobalPointerMove);
-      window.removeEventListener('pointerup', handleGlobalPointerUp);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleRelease);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleRelease);
     };
   }, [dragState]);
 
@@ -296,13 +311,8 @@ export default function EmployeesClient({
     }
   };
 
-  // --- CONTROLES DEL PLANIFICADOR INTERACTIVO ---
-  const handlePointerDown = (
-    e: React.PointerEvent<HTMLDivElement>,
-    dayKey: string,
-    mode: 'left' | 'right' | 'center'
-  ) => {
-    console.log('handlePointerDown clicked:', dayKey, mode, 'clientX:', e.clientX);
+  const startDrag = (clientX: number, dayKey: string, mode: 'left' | 'right' | 'center') => {
+    console.log('startDrag initiated:', dayKey, mode, 'clientX:', clientX);
     const trackElement = document.getElementById(`track-${dayKey}`);
     if (!trackElement) {
       console.error('trackElement not found for', dayKey);
@@ -320,11 +330,31 @@ export default function EmployeesClient({
     setDragState({
       dayKey,
       mode,
-      startX: e.clientX,
+      startX: clientX,
       initialStartMins: startMins,
       initialEndMins: endMins,
       containerWidth: rect.width
     });
+  };
+
+  const handleMouseDown = (
+    e: React.MouseEvent<HTMLDivElement>,
+    dayKey: string,
+    mode: 'left' | 'right' | 'center'
+  ) => {
+    if (e.button !== 0) return; // Only drag on left click
+    startDrag(e.clientX, dayKey, mode);
+  };
+
+  const handleTouchStart = (
+    e: React.TouchEvent<HTMLDivElement>,
+    dayKey: string,
+    mode: 'left' | 'right' | 'center'
+  ) => {
+    const touch = e.touches[0];
+    if (touch) {
+      startDrag(touch.clientX, dayKey, mode);
+    }
   };
 
   const handleSaveScheduler = async () => {
@@ -670,7 +700,8 @@ export default function EmployeesClient({
                               touchAction: 'none',
                               boxShadow: '0 2px 4px rgba(26, 102, 255, 0.15)'
                             }}
-                            onPointerDown={(e) => handlePointerDown(e, day.key, 'center')}
+                            onMouseDown={(e) => handleMouseDown(e, day.key, 'center')}
+                            onTouchStart={(e) => handleTouchStart(e, day.key, 'center')}
                             onDragStart={(e) => e.preventDefault()}
                           >
                             {/* Left Handle */}
@@ -684,9 +715,13 @@ export default function EmployeesClient({
                                 opacity: 0.8,
                                 touchAction: 'none'
                               }}
-                              onPointerDown={(e) => {
+                              onMouseDown={(e) => {
                                 e.stopPropagation();
-                                handlePointerDown(e, day.key, 'left');
+                                handleMouseDown(e, day.key, 'left');
+                              }}
+                              onTouchStart={(e) => {
+                                e.stopPropagation();
+                                handleTouchStart(e, day.key, 'left');
                               }}
                             />
 
@@ -715,9 +750,13 @@ export default function EmployeesClient({
                                 opacity: 0.8,
                                 touchAction: 'none'
                               }}
-                              onPointerDown={(e) => {
+                              onMouseDown={(e) => {
                                 e.stopPropagation();
-                                handlePointerDown(e, day.key, 'right');
+                                handleMouseDown(e, day.key, 'right');
+                              }}
+                              onTouchStart={(e) => {
+                                e.stopPropagation();
+                                handleTouchStart(e, day.key, 'right');
                               }}
                             />
                           </div>
