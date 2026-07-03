@@ -749,12 +749,31 @@ export default function EmployeesClient({
               );
             }
 
+            const weeklyHours = (() => {
+              if (!selectedEmp) return 0;
+              const empSchedule = schedBatchSchedules[selectedEmp.id];
+              if (!empSchedule) return 0;
+              let totalMins = 0;
+              Object.values(empSchedule).forEach(day => {
+                if (day.enabled) {
+                  const startMins = timeToMinutes(day.start);
+                  const endMins = timeToMinutes(day.end);
+                  if (endMins >= startMins) {
+                    totalMins += (endMins - startMins);
+                  } else {
+                    totalMins += (1440 - startMins) + endMins;
+                  }
+                }
+              });
+              return totalMins / 60;
+            })();
+
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {schedMode === 'employee' 
-                      ? `Horario Semanal de ${selectedEmp?.name}`
+                      ? `Horario Semanal de ${selectedEmp?.name} (${weeklyHours.toLocaleString('es-ES', { maximumFractionDigits: 2 })} horas asignadas)`
                       : `Planificación Diaria (${selectedDayKey === '1' ? 'Lunes' : selectedDayKey === '2' ? 'Martes' : selectedDayKey === '3' ? 'Miércoles' : selectedDayKey === '4' ? 'Jueves' : selectedDayKey === '5' ? 'Viernes' : selectedDayKey === '6' ? 'Sábado' : 'Domingo'})`}
                   </h3>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
