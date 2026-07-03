@@ -93,7 +93,51 @@ export default function EmployeesClient({
       }
     }
   }, [selectedSchedEmployeeId, employees]);
-  
+
+  useEffect(() => {
+    if (!dragState) return;
+
+    const handleGlobalPointerMove = (e: PointerEvent) => {
+      const deltaX = e.clientX - dragState.startX;
+      const deltaMins = Math.round((deltaX / dragState.containerWidth) * 1440);
+      const snappedDelta = Math.round(deltaMins / 15) * 15;
+
+      let newStart = dragState.initialStartMins;
+      let newEnd = dragState.initialEndMins;
+
+      if (dragState.mode === 'left') {
+        newStart = Math.max(0, Math.min(dragState.initialEndMins - 15, dragState.initialStartMins + snappedDelta));
+      } else if (dragState.mode === 'right') {
+        newEnd = Math.max(dragState.initialStartMins + 15, Math.min(1440, dragState.initialEndMins + snappedDelta));
+      } else if (dragState.mode === 'center') {
+        const duration = dragState.initialEndMins - dragState.initialStartMins;
+        newStart = Math.max(0, Math.min(1440 - duration, dragState.initialStartMins + snappedDelta));
+        newEnd = newStart + duration;
+      }
+
+      setSchedSchedule((prev) => ({
+        ...prev,
+        [dragState.dayKey]: {
+          ...prev[dragState.dayKey],
+          start: minutesToTime(newStart),
+          end: minutesToTime(newEnd)
+        }
+      }));
+    };
+
+    const handleGlobalPointerUp = () => {
+      setDragState(null);
+    };
+
+    window.addEventListener('pointermove', handleGlobalPointerMove);
+    window.addEventListener('pointerup', handleGlobalPointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handleGlobalPointerMove);
+      window.removeEventListener('pointerup', handleGlobalPointerUp);
+    };
+  }, [dragState]);
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -271,46 +315,6 @@ export default function EmployeesClient({
       initialEndMins: endMins,
       containerWidth: rect.width
     });
-
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState) return;
-    e.preventDefault();
-
-    const deltaX = e.clientX - dragState.startX;
-    const deltaMins = Math.round((deltaX / dragState.containerWidth) * 1440);
-    const snappedDelta = Math.round(deltaMins / 15) * 15;
-
-    let newStart = dragState.initialStartMins;
-    let newEnd = dragState.initialEndMins;
-
-    if (dragState.mode === 'left') {
-      newStart = Math.max(0, Math.min(dragState.initialEndMins - 15, dragState.initialStartMins + snappedDelta));
-    } else if (dragState.mode === 'right') {
-      newEnd = Math.max(dragState.initialStartMins + 15, Math.min(1440, dragState.initialEndMins + snappedDelta));
-    } else if (dragState.mode === 'center') {
-      const duration = dragState.initialEndMins - dragState.initialStartMins;
-      newStart = Math.max(0, Math.min(1440 - duration, dragState.initialStartMins + snappedDelta));
-      newEnd = newStart + duration;
-    }
-
-    setSchedSchedule((prev) => ({
-      ...prev,
-      [dragState.dayKey]: {
-        ...prev[dragState.dayKey],
-        start: minutesToTime(newStart),
-        end: minutesToTime(newEnd)
-      }
-    }));
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState) return;
-    e.preventDefault();
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    setDragState(null);
   };
 
   const handleSaveScheduler = async () => {
@@ -532,8 +536,6 @@ export default function EmployeesClient({
           {selectedEmp ? (
             <div 
               style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '12px' }}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
