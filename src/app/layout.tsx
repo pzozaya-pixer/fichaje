@@ -25,6 +25,23 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for (var i = 0; i < registrations.length; i++) {
+                    registrations[i].unregister().then(function(success) {
+                      if (success) {
+                        console.log('Stale Service Worker unregistered.');
+                      }
+                    });
+                  }
+                });
+              }
+            `
+          }}
+        />
         {children}
       </body>
     </html>
