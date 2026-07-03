@@ -131,6 +131,29 @@ export default function MovilClient({
     updateGpsPermissionState();
   }, []);
 
+  // Auto-refresh when PWA gains focus or is resumed from background
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleFocus = () => {
+      console.log('App focused or resumed, refreshing router...');
+      router.refresh();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleFocus();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [router]);
+
   const handleToggleGps = () => {
     if (gpsPermission === 'granted') {
       setGpsModalMode('disable');

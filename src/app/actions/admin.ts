@@ -76,6 +76,7 @@ export async function saveEmployee(data: {
       data: employeeData,
     });
     revalidatePath('/dashboard/employees');
+    revalidatePath('/movil');
     return result;
   } else {
     // Crear nuevo
@@ -83,6 +84,7 @@ export async function saveEmployee(data: {
       data: employeeData,
     });
     revalidatePath('/dashboard/employees');
+    revalidatePath('/movil');
     return result;
   }
 }
