@@ -39,18 +39,18 @@ export default function EmployeesClient({
   
   // Sub-tabs state
   const [activeSubTab, setActiveSubTab] = useState<'list' | 'scheduler'>('list');
+
+  // Scheduler parameters
+  const [schedMode, setSchedMode] = useState<'employee' | 'center_day'>('employee');
   const [selectedSchedEmployeeId, setSelectedSchedEmployeeId] = useState(initialEmployees[0]?.id || '');
-  const [schedSchedule, setSchedSchedule] = useState<Record<string, { enabled: boolean; start: string; end: string }>>({
-    '1': { enabled: true, start: '09:00', end: '18:00' },
-    '2': { enabled: true, start: '09:00', end: '18:00' },
-    '3': { enabled: true, start: '09:00', end: '18:00' },
-    '4': { enabled: true, start: '09:00', end: '18:00' },
-    '5': { enabled: true, start: '09:00', end: '18:00' },
-    '6': { enabled: false, start: '09:00', end: '18:00' },
-    '0': { enabled: false, start: '09:00', end: '18:00' },
-  });
+  const [selectedWorkCenterId, setSelectedWorkCenterId] = useState('all');
+  const [selectedDayKey, setSelectedDayKey] = useState<string>('1'); // '1' = Lunes
+
+  // Unified batch schedule state: map employeeId -> weeklySchedule
+  const [schedBatchSchedules, setSchedBatchSchedules] = useState<Record<string, Record<string, { enabled: boolean; start: string; end: string }>>>({});
 
   const [dragState, setDragState] = useState<{
+    employeeId: string;
     dayKey: string;
     mode: 'left' | 'right' | 'center';
     startX: number;
@@ -61,16 +61,17 @@ export default function EmployeesClient({
 
   const selectedEmp = employees.find(e => e.id === selectedSchedEmployeeId);
 
+  // Initialize and reload schedules when employees prop updates
   useEffect(() => {
-    if (selectedEmp) {
-      if (selectedEmp.weeklySchedule) {
+    const batch: Record<string, Record<string, { enabled: boolean; start: string; end: string }>> = {};
+    employees.forEach((emp) => {
+      if (emp.weeklySchedule) {
         try {
-          const parsed = typeof selectedEmp.weeklySchedule === 'string'
-            ? JSON.parse(selectedEmp.weeklySchedule)
-            : selectedEmp.weeklySchedule;
-          setSchedSchedule(parsed);
+          batch[emp.id] = typeof emp.weeklySchedule === 'string'
+            ? JSON.parse(emp.weeklySchedule)
+            : emp.weeklySchedule;
         } catch (e) {
-          setSchedSchedule({
+          batch[emp.id] = {
             '1': { enabled: true, start: '09:00', end: '18:00' },
             '2': { enabled: true, start: '09:00', end: '18:00' },
             '3': { enabled: true, start: '09:00', end: '18:00' },
@@ -78,10 +79,10 @@ export default function EmployeesClient({
             '5': { enabled: true, start: '09:00', end: '18:00' },
             '6': { enabled: false, start: '09:00', end: '18:00' },
             '0': { enabled: false, start: '09:00', end: '18:00' },
-          });
+          };
         }
       } else {
-        setSchedSchedule({
+        batch[emp.id] = {
           '1': { enabled: true, start: '09:00', end: '18:00' },
           '2': { enabled: true, start: '09:00', end: '18:00' },
           '3': { enabled: true, start: '09:00', end: '18:00' },
@@ -89,22 +90,21 @@ export default function EmployeesClient({
           '5': { enabled: true, start: '09:00', end: '18:00' },
           '6': { enabled: false, start: '09:00', end: '18:00' },
           '0': { enabled: false, start: '09:00', end: '18:00' },
-        });
+        };
       }
-    }
-  }, [selectedSchedEmployeeId, employees]);
+    });
+    setSchedBatchSchedules(batch);
+  }, [employees]);
 
   useEffect(() => {
     if (!dragState) return;
 
-    console.log('Registered global drag listeners for', dragState.dayKey, dragState.mode);
+    console.log('Registered global drag listeners for', dragState.employeeId, dragState.dayKey, dragState.mode);
 
     const handleMove = (clientX: number) => {
       const deltaX = clientX - dragState.startX;
       const deltaMins = Math.round((deltaX / dragState.containerWidth) * 1440);
       const snappedDelta = Math.round(deltaMins / 15) * 15;
-
-      console.log('Drag Move - deltaX:', deltaX, 'deltaMins:', deltaMins, 'snappedDelta:', snappedDelta);
 
       let newStart = dragState.initialStartMins;
       let newEnd = dragState.initialEndMins;
@@ -119,14 +119,20 @@ export default function EmployeesClient({
         newEnd = newStart + duration;
       }
 
-      setSchedSchedule((prev) => ({
-        ...prev,
-        [dragState.dayKey]: {
-          ...prev[dragState.dayKey],
-          start: minutesToTime(newStart),
-          end: minutesToTime(newEnd)
-        }
-      }));
+      setSchedBatchSchedules((prev) => {
+        const empSchedule = prev[dragState.employeeId] || {};
+        return {
+          ...prev,
+          [dragState.employeeId]: {
+            ...empSchedule,
+            [dragState.dayKey]: {
+              ...empSchedule[dragState.dayKey],
+              start: minutesToTime(newStart),
+              end: minutesToTime(newEnd)
+            }
+          }
+        };
+      });
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -311,16 +317,17 @@ export default function EmployeesClient({
     }
   };
 
-  const startDrag = (clientX: number, dayKey: string, mode: 'left' | 'right' | 'center') => {
-    console.log('startDrag initiated:', dayKey, mode, 'clientX:', clientX);
-    const trackElement = document.getElementById(`track-${dayKey}`);
+  const startDrag = (clientX: number, employeeId: string, dayKey: string, mode: 'left' | 'right' | 'center') => {
+    console.log('startDrag initiated:', employeeId, dayKey, mode, 'clientX:', clientX);
+    const trackElement = document.getElementById(`track-${employeeId}-${dayKey}`);
     if (!trackElement) {
-      console.error('trackElement not found for', dayKey);
+      console.error('trackElement not found for', employeeId, dayKey);
       return;
     }
 
     const rect = trackElement.getBoundingClientRect();
-    const daySched = schedSchedule[dayKey] || { enabled: false, start: '09:00', end: '18:00' };
+    const empScheds = schedBatchSchedules[employeeId] || {};
+    const daySched = empScheds[dayKey] || { enabled: false, start: '09:00', end: '18:00' };
 
     const startMins = timeToMinutes(daySched.start);
     const endMins = timeToMinutes(daySched.end);
@@ -328,6 +335,7 @@ export default function EmployeesClient({
     console.log('Initial drag values - startMins:', startMins, 'endMins:', endMins, 'width:', rect.width);
 
     setDragState({
+      employeeId,
       dayKey,
       mode,
       startX: clientX,
@@ -339,62 +347,112 @@ export default function EmployeesClient({
 
   const handleMouseDown = (
     e: React.MouseEvent<HTMLDivElement>,
+    employeeId: string,
     dayKey: string,
     mode: 'left' | 'right' | 'center'
   ) => {
     if (e.button !== 0) return; // Only drag on left click
-    startDrag(e.clientX, dayKey, mode);
+    startDrag(e.clientX, employeeId, dayKey, mode);
   };
 
   const handleTouchStart = (
     e: React.TouchEvent<HTMLDivElement>,
+    employeeId: string,
     dayKey: string,
     mode: 'left' | 'right' | 'center'
   ) => {
     const touch = e.touches[0];
     if (touch) {
-      startDrag(touch.clientX, dayKey, mode);
+      startDrag(touch.clientX, employeeId, dayKey, mode);
     }
   };
 
   const handleSaveScheduler = async () => {
-    if (!selectedEmp) return;
     setLoading(true);
     setError('');
 
     try {
-      await saveEmployee({
-        id: selectedEmp.id,
-        name: selectedEmp.name,
-        email: selectedEmp.email,
-        phone: selectedEmp.phone || '',
-        role: selectedEmp.role as any,
-        contractType: selectedEmp.contractType as any,
-        isActive: selectedEmp.isActive,
-        departmentId: selectedEmp.departmentId || undefined,
-        workCenterId: selectedEmp.workCenterId || undefined,
-        dailyContractedHours: selectedEmp.dailyContractedHours,
-        monthlyContractedHours: selectedEmp.monthlyContractedHours,
-        weeklySchedule: schedSchedule,
-        allowOutsideSchedule: selectedEmp.allowOutsideSchedule,
-      });
-      alert('Horario guardado con éxito.');
+      if (schedMode === 'employee') {
+        const emp = employees.find(e => e.id === selectedSchedEmployeeId);
+        if (!emp) return;
+
+        await saveEmployee({
+          id: emp.id,
+          name: emp.name,
+          email: emp.email,
+          phone: emp.phone || '',
+          role: emp.role as any,
+          contractType: emp.contractType as any,
+          isActive: emp.isActive,
+          departmentId: emp.departmentId || undefined,
+          workCenterId: emp.workCenterId || undefined,
+          dailyContractedHours: emp.dailyContractedHours,
+          monthlyContractedHours: emp.monthlyContractedHours,
+          weeklySchedule: schedBatchSchedules[emp.id],
+          allowOutsideSchedule: emp.allowOutsideSchedule,
+        });
+      } else {
+        // Modo B: Save all modified employees
+        const modifiedEmployees = employees.filter(emp => {
+          if (selectedWorkCenterId !== 'all' && emp.workCenterId !== selectedWorkCenterId) {
+            return false;
+          }
+          const orig = emp.weeklySchedule 
+            ? (typeof emp.weeklySchedule === 'string' ? JSON.parse(emp.weeklySchedule) : emp.weeklySchedule)
+            : {
+                '1': { enabled: true, start: '09:00', end: '18:00' },
+                '2': { enabled: true, start: '09:00', end: '18:00' },
+                '3': { enabled: true, start: '09:00', end: '18:00' },
+                '4': { enabled: true, start: '09:00', end: '18:00' },
+                '5': { enabled: true, start: '09:00', end: '18:00' },
+                '6': { enabled: false, start: '09:00', end: '18:00' },
+                '0': { enabled: false, start: '09:00', end: '18:00' },
+              };
+          const current = schedBatchSchedules[emp.id] || orig;
+          return JSON.stringify(orig) !== JSON.stringify(current);
+        });
+
+        for (const emp of modifiedEmployees) {
+          await saveEmployee({
+            id: emp.id,
+            name: emp.name,
+            email: emp.email,
+            phone: emp.phone || '',
+            role: emp.role as any,
+            contractType: emp.contractType as any,
+            isActive: emp.isActive,
+            departmentId: emp.departmentId || undefined,
+            workCenterId: emp.workCenterId || undefined,
+            dailyContractedHours: emp.dailyContractedHours,
+            monthlyContractedHours: emp.monthlyContractedHours,
+            weeklySchedule: schedBatchSchedules[emp.id],
+            allowOutsideSchedule: emp.allowOutsideSchedule,
+          });
+        }
+      }
+      alert('Planificación guardada con éxito.');
       window.location.reload();
     } catch (err: any) {
-      setError(err.message || 'Error al guardar el horario.');
+      setError(err.message || 'Error al guardar la planificación.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDaySchedToggle = (dayKey: string, enabled: boolean) => {
-    setSchedSchedule(prev => ({
-      ...prev,
-      [dayKey]: {
-        ...prev[dayKey],
-        enabled
-      }
-    }));
+  const handleDaySchedToggle = (employeeId: string, dayKey: string, enabled: boolean) => {
+    setSchedBatchSchedules(prev => {
+      const empSchedule = prev[employeeId] || {};
+      return {
+        ...prev,
+        [employeeId]: {
+          ...empSchedule,
+          [dayKey]: {
+            ...empSchedule[dayKey],
+            enabled
+          }
+        }
+      };
+    });
   };
 
   // Filtrar empleados según búsqueda
@@ -557,230 +615,339 @@ export default function EmployeesClient({
       ) : (
         /* PLANIFICADOR HORARIO INTERACTIVO (ARRASTRABLE) */
         <div className="premium-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px' }}>
-            <label className="form-label">Seleccionar Empleado</label>
-            <select
-              className="form-select"
-              value={selectedSchedEmployeeId}
-              onChange={(e) => setSelectedSchedEmployeeId(e.target.value)}
-              style={{ width: '100%' }}
-            >
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name} ({emp.departmentName})
-                </option>
-              ))}
-            </select>
+          
+          {/* SELECCIÓN DE MODO Y FILTROS */}
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
+              <label className="form-label">Modo de Planificación</label>
+              <select
+                className="form-select"
+                value={schedMode}
+                onChange={(e) => setSchedMode(e.target.value as any)}
+                style={{ width: '100%' }}
+              >
+                <option value="employee">Por Empleado (Semanal)</option>
+                <option value="center_day">Por Centro y Día (Diario)</option>
+              </select>
+            </div>
+
+            {schedMode === 'employee' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '240px' }}>
+                <label className="form-label">Seleccionar Empleado</label>
+                <select
+                  className="form-select"
+                  value={selectedSchedEmployeeId}
+                  onChange={(e) => setSelectedSchedEmployeeId(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.departmentName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '200px' }}>
+                  <label className="form-label">Centro de Trabajo</label>
+                  <select
+                    className="form-select"
+                    value={selectedWorkCenterId}
+                    onChange={(e) => setSelectedWorkCenterId(e.target.value)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="all">Todos los centros</option>
+                    {workCenters.map((wc) => (
+                      <option key={wc.id} value={wc.id}>{wc.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '180px' }}>
+                  <label className="form-label">Día de la Semana</label>
+                  <select
+                    className="form-select"
+                    value={selectedDayKey}
+                    onChange={(e) => setSelectedDayKey(e.target.value)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="1">Lunes</option>
+                    <option value="2">Martes</option>
+                    <option value="3">Miércoles</option>
+                    <option value="4">Jueves</option>
+                    <option value="5">Viernes</option>
+                    <option value="6">Sábado</option>
+                    <option value="0">Domingo</option>
+                  </select>
+                </div>
+              </>
+            )}
           </div>
 
-          {selectedEmp ? (
-            <div 
-              style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '12px' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Horario Semanal de {selectedEmp.name}
-                </h3>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                  * Arrastra los bordes de la barra para ajustar entrada/salida. Arrastra el centro para desplazar el bloque de horario.
-                </span>
-              </div>
+          {/* RENDERIZADO DE LAS FILAS DE LA LÍNEA DE TIEMPO */}
+          {(() => {
+            const schedulerRows = (() => {
+              if (schedMode === 'employee') {
+                if (!selectedEmp) return [];
+                return [
+                  { employeeId: selectedEmp.id, dayKey: '1', label: 'Lunes', subtitle: '' },
+                  { employeeId: selectedEmp.id, dayKey: '2', label: 'Martes', subtitle: '' },
+                  { employeeId: selectedEmp.id, dayKey: '3', label: 'Miércoles', subtitle: '' },
+                  { employeeId: selectedEmp.id, dayKey: '4', label: 'Jueves', subtitle: '' },
+                  { employeeId: selectedEmp.id, dayKey: '5', label: 'Viernes', subtitle: '' },
+                  { employeeId: selectedEmp.id, dayKey: '6', label: 'Sábado', subtitle: '' },
+                  { employeeId: selectedEmp.id, dayKey: '0', label: 'Domingo', subtitle: '' },
+                ];
+              } else {
+                const filtered = employees.filter(emp => {
+                  if (selectedWorkCenterId !== 'all' && emp.workCenterId !== selectedWorkCenterId) {
+                    return false;
+                  }
+                  return true;
+                });
+                return filtered.map(emp => ({
+                  employeeId: emp.id,
+                  dayKey: selectedDayKey,
+                  label: emp.name,
+                  subtitle: emp.departmentName
+                }));
+              }
+            })();
 
-              {/* Timeline headers (00:00 to 24:00) */}
-              <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '140px', paddingRight: '12px' }}>
-                <div style={{ position: 'relative', width: '100%', height: '20px', borderBottom: '1.5px solid var(--border-color)' }}>
-                  {Array.from({ length: 13 }).map((_, idx) => {
-                    const hour = idx * 2;
-                    const hourStr = `${hour.toString().padStart(2, '0')}:00`;
+            if (schedulerRows.length === 0) {
+              return (
+                <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '12px', textAlign: 'center' }}>
+                  No hay empleados disponibles con los filtros seleccionados.
+                </p>
+              );
+            }
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {schedMode === 'employee' 
+                      ? `Horario Semanal de ${selectedEmp?.name}`
+                      : `Planificación Diaria (${selectedDayKey === '1' ? 'Lunes' : selectedDayKey === '2' ? 'Martes' : selectedDayKey === '3' ? 'Miércoles' : selectedDayKey === '4' ? 'Jueves' : selectedDayKey === '5' ? 'Viernes' : selectedDayKey === '6' ? 'Sábado' : 'Domingo'})`}
+                  </h3>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                    * Arrastra los bordes de la barra para ajustar entrada/salida. Arrastra el centro para desplazar el bloque.
+                  </span>
+                </div>
+
+                {/* Timeline headers (00:00 to 24:00) */}
+                <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '180px', paddingRight: '12px' }}>
+                  <div style={{ position: 'relative', width: '100%', height: '20px', borderBottom: '1.5px solid var(--border-color)' }}>
+                    {Array.from({ length: 13 }).map((_, idx) => {
+                      const hour = idx * 2;
+                      const hourStr = `${hour.toString().padStart(2, '0')}:00`;
+                      return (
+                        <span 
+                          key={idx}
+                          style={{
+                            position: 'absolute',
+                            left: `${(hour / 24) * 100}%`,
+                            transform: 'translateX(-50%)',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: 'var(--text-secondary)',
+                            top: '-4px'
+                          }}
+                        >
+                          {hourStr}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Rows wrapper */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {schedulerRows.map((row) => {
+                    const empScheds = schedBatchSchedules[row.employeeId] || {};
+                    const daySched = empScheds[row.dayKey] || { enabled: false, start: '09:00', end: '18:00' };
+                    const startMins = timeToMinutes(daySched.start);
+                    const endMins = timeToMinutes(daySched.end);
+                    
                     return (
-                      <span 
-                        key={idx}
-                        style={{
-                          position: 'absolute',
-                          left: `${(hour / 24) * 100}%`,
-                          transform: 'translateX(-50%)',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          color: 'var(--text-secondary)',
-                          top: '-4px'
+                      <div 
+                        key={`${row.employeeId}-${row.dayKey}`} 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '16px' 
                         }}
                       >
-                        {hourStr}
-                      </span>
+                        {/* Checkbox and Label */}
+                        <div style={{ width: '160px', display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flexShrink: 0 }}>
+                          <input
+                            type="checkbox"
+                            style={{ width: '18px', height: '18px', cursor: 'pointer', flexShrink: 0 }}
+                            checked={daySched.enabled}
+                            onChange={(e) => handleDaySchedToggle(row.employeeId, row.dayKey, e.target.checked)}
+                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            <span style={{ 
+                              fontSize: '14px', 
+                              fontWeight: daySched.enabled ? 600 : 400, 
+                              color: daySched.enabled ? 'var(--text-primary)' : 'var(--text-secondary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {row.label}
+                            </span>
+                            {row.subtitle && (
+                              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {row.subtitle}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Drag Track Container */}
+                        <div 
+                          id={`track-${row.employeeId}-${row.dayKey}`}
+                          style={{
+                            position: 'relative',
+                            height: '42px',
+                            backgroundColor: daySched.enabled ? '#f1f5f9' : '#f8fafc',
+                            borderRadius: '6px',
+                            border: '1.5px solid',
+                            borderColor: daySched.enabled ? '#cbd5e1' : '#f1f5f9',
+                            flexGrow: 1,
+                            boxShadow: daySched.enabled ? 'inset 0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                            opacity: daySched.enabled ? 1 : 0.5
+                          }}
+                        >
+                          {/* Grid Lines inside the track */}
+                          {Array.from({ length: 13 }).map((_, idx) => (
+                            <div 
+                              key={idx}
+                              style={{
+                                position: 'absolute',
+                                left: `${(idx * 2 / 24) * 100}%`,
+                                top: 0,
+                                bottom: 0,
+                                width: '1px',
+                                backgroundColor: '#e2e8f0',
+                                pointerEvents: 'none'
+                              }}
+                            />
+                          ))}
+
+                          {/* Active working block */}
+                          {daySched.enabled && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: `${(startMins / 1440) * 100}%`,
+                                width: `${((endMins - startMins) / 1440) * 100}%`,
+                                top: '4px',
+                                bottom: '4px',
+                                backgroundColor: 'rgba(26, 102, 255, 0.1)',
+                                border: '1.5px solid var(--primary)',
+                                borderRadius: '4px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                cursor: 'grab',
+                                userSelect: 'none',
+                                touchAction: 'none',
+                                boxShadow: '0 2px 4px rgba(26, 102, 255, 0.15)'
+                              }}
+                              onMouseDown={(e) => handleMouseDown(e, row.employeeId, row.dayKey, 'center')}
+                              onTouchStart={(e) => handleTouchStart(e, row.employeeId, row.dayKey, 'center')}
+                              onDragStart={(e) => e.preventDefault()}
+                            >
+                              {/* Left Handle */}
+                              <div
+                                style={{
+                                  width: '8px',
+                                  height: '100%',
+                                  cursor: 'ew-resize',
+                                  backgroundColor: 'var(--primary)',
+                                  borderRadius: '2px 0 0 2px',
+                                  opacity: 0.8,
+                                  touchAction: 'none'
+                                }}
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                  handleMouseDown(e, row.employeeId, row.dayKey, 'left');
+                                }}
+                                onTouchStart={(e) => {
+                                  e.stopPropagation();
+                                  handleTouchStart(e, row.employeeId, row.dayKey, 'left');
+                                }}
+                              />
+
+                              {/* Display text in center */}
+                              <span style={{ 
+                                fontSize: '11px', 
+                                fontWeight: 700, 
+                                color: 'var(--primary)', 
+                                pointerEvents: 'none',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                padding: '0 4px'
+                              }}>
+                                {daySched.start} - {daySched.end}
+                              </span>
+
+                              {/* Right Handle */}
+                              <div
+                                style={{
+                                  width: '8px',
+                                  height: '100%',
+                                  cursor: 'ew-resize',
+                                  backgroundColor: 'var(--primary)',
+                                  borderRadius: '0 2px 2px 0',
+                                  opacity: 0.8,
+                                  touchAction: 'none'
+                                }}
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                  handleMouseDown(e, row.employeeId, row.dayKey, 'right');
+                                }}
+                                onTouchStart={(e) => {
+                                  e.stopPropagation();
+                                  handleTouchStart(e, row.employeeId, row.dayKey, 'right');
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
-              </div>
 
-              {/* Weekly rows */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {[
-                  { key: '1', label: 'Lunes' },
-                  { key: '2', label: 'Martes' },
-                  { key: '3', label: 'Miércoles' },
-                  { key: '4', label: 'Jueves' },
-                  { key: '5', label: 'Viernes' },
-                  { key: '6', label: 'Sábado' },
-                  { key: '0', label: 'Domingo' }
-                ].map((day) => {
-                  const daySched = schedSchedule[day.key] || { enabled: false, start: '09:00', end: '18:00' };
-                  const startMins = timeToMinutes(daySched.start);
-                  const endMins = timeToMinutes(daySched.end);
-                  
-                  return (
-                    <div 
-                      key={day.key} 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '16px' 
-                      }}
-                    >
-                      {/* Checkbox and Day Label */}
-                      <div style={{ width: '120px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          type="checkbox"
-                          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                          checked={daySched.enabled}
-                          onChange={(e) => handleDaySchedToggle(day.key, e.target.checked)}
-                        />
-                        <span style={{ fontSize: '14px', fontWeight: daySched.enabled ? 600 : 400, color: daySched.enabled ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                          {day.label}
-                        </span>
-                      </div>
-
-                      {/* Drag Track Container */}
-                      <div 
-                        id={`track-${day.key}`}
-                        style={{
-                          position: 'relative',
-                          height: '42px',
-                          backgroundColor: daySched.enabled ? '#f1f5f9' : '#f8fafc',
-                          borderRadius: '6px',
-                          border: '1.5px solid',
-                          borderColor: daySched.enabled ? '#cbd5e1' : '#f1f5f9',
-                          flexGrow: 1,
-                          boxShadow: daySched.enabled ? 'inset 0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                          opacity: daySched.enabled ? 1 : 0.5
-                        }}
-                      >
-                        {/* Grid Lines inside the track */}
-                        {Array.from({ length: 13 }).map((_, idx) => (
-                          <div 
-                            key={idx}
-                            style={{
-                              position: 'absolute',
-                              left: `${(idx * 2 / 24) * 100}%`,
-                              top: 0,
-                              bottom: 0,
-                              width: '1px',
-                              backgroundColor: '#e2e8f0',
-                              pointerEvents: 'none'
-                            }}
-                          />
-                        ))}
-
-                        {/* Active working block */}
-                        {daySched.enabled && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              left: `${(startMins / 1440) * 100}%`,
-                              width: `${((endMins - startMins) / 1440) * 100}%`,
-                              top: '4px',
-                              bottom: '4px',
-                              backgroundColor: 'rgba(26, 102, 255, 0.1)',
-                              border: '1.5px solid var(--primary)',
-                              borderRadius: '4px',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              cursor: 'grab',
-                              userSelect: 'none',
-                              touchAction: 'none',
-                              boxShadow: '0 2px 4px rgba(26, 102, 255, 0.15)'
-                            }}
-                            onMouseDown={(e) => handleMouseDown(e, day.key, 'center')}
-                            onTouchStart={(e) => handleTouchStart(e, day.key, 'center')}
-                            onDragStart={(e) => e.preventDefault()}
-                          >
-                            {/* Left Handle */}
-                            <div
-                              style={{
-                                width: '8px',
-                                height: '100%',
-                                cursor: 'ew-resize',
-                                backgroundColor: 'var(--primary)',
-                                borderRadius: '2px 0 0 2px',
-                                opacity: 0.8,
-                                touchAction: 'none'
-                              }}
-                              onMouseDown={(e) => {
-                                e.stopPropagation();
-                                handleMouseDown(e, day.key, 'left');
-                              }}
-                              onTouchStart={(e) => {
-                                e.stopPropagation();
-                                handleTouchStart(e, day.key, 'left');
-                              }}
-                            />
-
-                            {/* Display text in center */}
-                            <span style={{ 
-                              fontSize: '11px', 
-                              fontWeight: 700, 
-                              color: 'var(--primary)', 
-                              pointerEvents: 'none',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              padding: '0 4px'
-                            }}>
-                              {daySched.start} - {daySched.end}
-                            </span>
-
-                            {/* Right Handle */}
-                            <div
-                              style={{
-                                width: '8px',
-                                height: '100%',
-                                cursor: 'ew-resize',
-                                backgroundColor: 'var(--primary)',
-                                borderRadius: '0 2px 2px 0',
-                                opacity: 0.8,
-                                touchAction: 'none'
-                              }}
-                              onMouseDown={(e) => {
-                                e.stopPropagation();
-                                handleMouseDown(e, day.key, 'right');
-                              }}
-                              onTouchStart={(e) => {
-                                e.stopPropagation();
-                                handleTouchStart(e, day.key, 'right');
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    if (selectedEmp) {
-                      if (selectedEmp.weeklySchedule) {
-                        try {
-                          const parsed = typeof selectedEmp.weeklySchedule === 'string'
-                            ? JSON.parse(selectedEmp.weeklySchedule)
-                            : selectedEmp.weeklySchedule;
-                          setSchedSchedule(parsed);
-                        } catch (e) {
-                          setSchedSchedule({
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const batch: Record<string, Record<string, { enabled: boolean; start: string; end: string }>> = {};
+                      employees.forEach((emp) => {
+                        if (emp.weeklySchedule) {
+                          try {
+                            batch[emp.id] = typeof emp.weeklySchedule === 'string'
+                              ? JSON.parse(emp.weeklySchedule)
+                              : emp.weeklySchedule;
+                          } catch (e) {
+                            batch[emp.id] = {
+                              '1': { enabled: true, start: '09:00', end: '18:00' },
+                              '2': { enabled: true, start: '09:00', end: '18:00' },
+                              '3': { enabled: true, start: '09:00', end: '18:00' },
+                              '4': { enabled: true, start: '09:00', end: '18:00' },
+                              '5': { enabled: true, start: '09:00', end: '18:00' },
+                              '6': { enabled: false, start: '09:00', end: '18:00' },
+                              '0': { enabled: false, start: '09:00', end: '18:00' },
+                            };
+                          }
+                        } else {
+                          batch[emp.id] = {
                             '1': { enabled: true, start: '09:00', end: '18:00' },
                             '2': { enabled: true, start: '09:00', end: '18:00' },
                             '3': { enabled: true, start: '09:00', end: '18:00' },
@@ -788,42 +955,29 @@ export default function EmployeesClient({
                             '5': { enabled: true, start: '09:00', end: '18:00' },
                             '6': { enabled: false, start: '09:00', end: '18:00' },
                             '0': { enabled: false, start: '09:00', end: '18:00' },
-                          });
+                          };
                         }
-                      } else {
-                        setSchedSchedule({
-                          '1': { enabled: true, start: '09:00', end: '18:00' },
-                          '2': { enabled: true, start: '09:00', end: '18:00' },
-                          '3': { enabled: true, start: '09:00', end: '18:00' },
-                          '4': { enabled: true, start: '09:00', end: '18:00' },
-                          '5': { enabled: true, start: '09:00', end: '18:00' },
-                          '6': { enabled: false, start: '09:00', end: '18:00' },
-                          '0': { enabled: false, start: '09:00', end: '18:00' },
-                        });
-                      }
-                    }
-                  }} 
-                  className="btn btn-secondary"
-                  disabled={loading}
-                >
-                  Descartar Cambios
-                </button>
-                <button 
-                  type="button" 
-                  onClick={handleSaveScheduler} 
-                  disabled={loading} 
-                  className="btn btn-primary"
-                >
-                  {loading ? <Loader2 className="animate-spin" size={16} /> : null}
-                  Guardar Planificación
-                </button>
+                      });
+                      setSchedBatchSchedules(batch);
+                    }} 
+                    className="btn btn-secondary"
+                    disabled={loading}
+                  >
+                    Descartar Cambios
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={handleSaveScheduler} 
+                    disabled={loading} 
+                    className="btn btn-primary"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={16} /> : null}
+                    Guardar Planificación
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '12px' }}>
-              No hay ningún empleado seleccionado o disponible.
-            </p>
-          )}
+            );
+          })()}
         </div>
       )}
 
