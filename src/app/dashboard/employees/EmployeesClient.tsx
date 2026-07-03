@@ -97,10 +97,14 @@ export default function EmployeesClient({
   useEffect(() => {
     if (!dragState) return;
 
+    console.log('Registered global drag listeners for', dragState.dayKey, dragState.mode);
+
     const handleGlobalPointerMove = (e: PointerEvent) => {
       const deltaX = e.clientX - dragState.startX;
       const deltaMins = Math.round((deltaX / dragState.containerWidth) * 1440);
       const snappedDelta = Math.round(deltaMins / 15) * 15;
+
+      console.log('Global Drag Move - deltaX:', deltaX, 'deltaMins:', deltaMins, 'snappedDelta:', snappedDelta);
 
       let newStart = dragState.initialStartMins;
       let newEnd = dragState.initialEndMins;
@@ -126,6 +130,7 @@ export default function EmployeesClient({
     };
 
     const handleGlobalPointerUp = () => {
+      console.log('Global Drag Release');
       setDragState(null);
     };
 
@@ -133,6 +138,7 @@ export default function EmployeesClient({
     window.addEventListener('pointerup', handleGlobalPointerUp);
 
     return () => {
+      console.log('Cleaned up global drag listeners');
       window.removeEventListener('pointermove', handleGlobalPointerMove);
       window.removeEventListener('pointerup', handleGlobalPointerUp);
     };
@@ -296,16 +302,20 @@ export default function EmployeesClient({
     dayKey: string,
     mode: 'left' | 'right' | 'center'
   ) => {
-    e.preventDefault();
+    console.log('handlePointerDown clicked:', dayKey, mode, 'clientX:', e.clientX);
     const trackElement = document.getElementById(`track-${dayKey}`);
-    if (!trackElement) return;
+    if (!trackElement) {
+      console.error('trackElement not found for', dayKey);
+      return;
+    }
 
     const rect = trackElement.getBoundingClientRect();
-    const daySched = schedSchedule[dayKey];
-    if (!daySched) return;
+    const daySched = schedSchedule[dayKey] || { enabled: false, start: '09:00', end: '18:00' };
 
     const startMins = timeToMinutes(daySched.start);
     const endMins = timeToMinutes(daySched.end);
+
+    console.log('Initial drag values - startMins:', startMins, 'endMins:', endMins, 'width:', rect.width);
 
     setDragState({
       dayKey,
@@ -657,9 +667,11 @@ export default function EmployeesClient({
                               alignItems: 'center',
                               cursor: 'grab',
                               userSelect: 'none',
+                              touchAction: 'none',
                               boxShadow: '0 2px 4px rgba(26, 102, 255, 0.15)'
                             }}
                             onPointerDown={(e) => handlePointerDown(e, day.key, 'center')}
+                            onDragStart={(e) => e.preventDefault()}
                           >
                             {/* Left Handle */}
                             <div
@@ -669,7 +681,8 @@ export default function EmployeesClient({
                                 cursor: 'ew-resize',
                                 backgroundColor: 'var(--primary)',
                                 borderRadius: '2px 0 0 2px',
-                                opacity: 0.8
+                                opacity: 0.8,
+                                touchAction: 'none'
                               }}
                               onPointerDown={(e) => {
                                 e.stopPropagation();
@@ -699,7 +712,8 @@ export default function EmployeesClient({
                                 cursor: 'ew-resize',
                                 backgroundColor: 'var(--primary)',
                                 borderRadius: '0 2px 2px 0',
-                                opacity: 0.8
+                                opacity: 0.8,
+                                touchAction: 'none'
                               }}
                               onPointerDown={(e) => {
                                 e.stopPropagation();
