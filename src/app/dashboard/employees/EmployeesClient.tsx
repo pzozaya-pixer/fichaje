@@ -48,6 +48,7 @@ export default function EmployeesClient({
 
   // Unified batch schedule state: map employeeId -> weeklySchedule
   const [schedBatchSchedules, setSchedBatchSchedules] = useState<Record<string, Record<string, { enabled: boolean; start: string; end: string }>>>({});
+  const [modifiedEmpIds, setModifiedEmpIds] = useState<Set<string>>(new Set());
 
   const [dragState, setDragState] = useState<{
     employeeId: string;
@@ -132,6 +133,13 @@ export default function EmployeesClient({
             }
           }
         };
+      });
+
+      setModifiedEmpIds((prev) => {
+        if (prev.has(dragState.employeeId)) return prev;
+        const next = new Set(prev);
+        next.add(dragState.employeeId);
+        return next;
       });
     };
 
@@ -374,7 +382,10 @@ export default function EmployeesClient({
     try {
       if (schedMode === 'employee') {
         const emp = employees.find(e => e.id === selectedSchedEmployeeId);
-        if (!emp) return;
+        if (!emp) {
+          setLoading(false);
+          return;
+        }
 
         await saveEmployee({
           id: emp.id,
@@ -392,27 +403,27 @@ export default function EmployeesClient({
           allowOutsideSchedule: emp.allowOutsideSchedule,
         });
       } else {
-        // Modo B: Save all modified employees
-        const modifiedEmployees = employees.filter(emp => {
-          if (selectedWorkCenterId !== 'all' && emp.workCenterId !== selectedWorkCenterId) {
-            return false;
-          }
-          const orig = emp.weeklySchedule 
-            ? (typeof emp.weeklySchedule === 'string' ? JSON.parse(emp.weeklySchedule) : emp.weeklySchedule)
-            : {
-                '1': { enabled: true, start: '09:00', end: '18:00' },
-                '2': { enabled: true, start: '09:00', end: '18:00' },
-                '3': { enabled: true, start: '09:00', end: '18:00' },
-                '4': { enabled: true, start: '09:00', end: '18:00' },
-                '5': { enabled: true, start: '09:00', end: '18:00' },
-                '6': { enabled: false, start: '09:00', end: '18:00' },
-                '0': { enabled: false, start: '09:00', end: '18:00' },
-              };
-          const current = schedBatchSchedules[emp.id] || orig;
-          return JSON.stringify(orig) !== JSON.stringify(current);
-        });
+        // Modo B: Save all modified employees tracked by modifiedEmpIds
+        if (modifiedEmpIds.size === 0) {
+          alert('No se han detectado cambios para guardar.');
+          setLoading(false);
+          return;
+        }
 
-        for (const emp of modifiedEmployees) {
+        const modifiedList = employees.filter(emp => modifiedEmpIds.has(emp.id));
+        console.log('Guardando lote de empleados modificados. Total:', modifiedList.length);
+
+        for (const emp of modifiedList) {
+          const scheduleToSave = schedBatchSchedules[emp.id] || emp.weeklySchedule || {
+            '1': { enabled: true, start: '09:00', end: '18:00' },
+            '2': { enabled: true, start: '09:00', end: '18:00' },
+            '3': { enabled: true, start: '09:00', end: '18:00' },
+            '4': { enabled: true, start: '09:00', end: '18:00' },
+            '5': { enabled: true, start: '09:00', end: '18:00' },
+            '6': { enabled: false, start: '09:00', end: '18:00' },
+            '0': { enabled: false, start: '09:00', end: '18:00' },
+          };
+
           await saveEmployee({
             id: emp.id,
             name: emp.name,
@@ -425,14 +436,17 @@ export default function EmployeesClient({
             workCenterId: emp.workCenterId || undefined,
             dailyContractedHours: emp.dailyContractedHours,
             monthlyContractedHours: emp.monthlyContractedHours,
-            weeklySchedule: schedBatchSchedules[emp.id],
+            weeklySchedule: scheduleToSave,
             allowOutsideSchedule: emp.allowOutsideSchedule,
           });
         }
       }
+      
+      setModifiedEmpIds(new Set());
       alert('Planificación guardada con éxito.');
       window.location.reload();
     } catch (err: any) {
+      console.error('Error al guardar la planificación:', err);
       setError(err.message || 'Error al guardar la planificación.');
     } finally {
       setLoading(false);
@@ -452,6 +466,13 @@ export default function EmployeesClient({
           }
         }
       };
+    });
+
+    setModifiedEmpIds(prev => {
+      if (prev.has(employeeId)) return prev;
+      const next = new Set(prev);
+      next.add(employeeId);
+      return next;
     });
   };
 
@@ -615,6 +636,12 @@ export default function EmployeesClient({
       ) : (
         /* PLANIFICADOR HORARIO INTERACTIVO (ARRASTRABLE) */
         <div className="premium-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {error && (
+            <div className="pwa-geo-status out-range" style={{ margin: 0 }}>
+              <span>{error}</span>
+            </div>
+          )}
           
           {/* SELECCIÓN DE MODO Y FILTROS */}
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
@@ -959,6 +986,7 @@ export default function EmployeesClient({
                         }
                       });
                       setSchedBatchSchedules(batch);
+                      setModifiedEmpIds(new Set());
                     }} 
                     className="btn btn-secondary"
                     disabled={loading}
