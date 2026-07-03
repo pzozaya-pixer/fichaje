@@ -106,6 +106,12 @@ export default function MovilClient({
   const [vacSummary, setVacSummary] = useState(vacationSummary);
   const [currentLegalDoc, setCurrentLegalDoc] = useState<string | null>(null);
 
+  // Estados de Alarmas de Fichaje
+  const [alarmEnabled, setAlarmEnabled] = useState<boolean>(true);
+  const [activeAlarm, setActiveAlarm] = useState<{ type: string; time: string } | null>(null);
+  const [lastStartAlarmDate, setLastStartAlarmDate] = useState<string>('');
+  const [lastEndAlarmDate, setLastEndAlarmDate] = useState<string>('');
+
   // Estados de Geolocalización (GPS)
   const [gpsPermission, setGpsPermission] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown');
   const [isGpsModalOpen, setIsGpsModalOpen] = useState(false);
@@ -153,6 +159,130 @@ export default function MovilClient({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [router]);
+
+  // Load initial alarm settings and request notification permission if supported
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem('fichaje_alarma_enabled');
+    if (saved !== null) {
+      setAlarmEnabled(saved === 'true');
+    }
+  }, []);
+
+  // Web Audio chime generator
+  const playAlarmSound = () => {
+    try {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtxClass) return;
+      const audioCtx = new AudioCtxClass();
+      
+      const playTone = (freq: number, start: number, duration: number) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start);
+        
+        gain.gain.setValueAtTime(0.3, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+        
+        osc.start(start);
+        osc.stop(start + duration);
+      };
+      
+      // Chime sequence: D5 -> E5 -> A5
+      playTone(587.33, audioCtx.currentTime, 0.4);
+      playTone(659.25, audioCtx.currentTime + 0.15, 0.5);
+      playTone(880.00, audioCtx.currentTime + 0.3, 0.6);
+    } catch (e) {
+      console.error('Failed to play alarm chime:', e);
+    }
+  };
+
+  const triggerAlarmNotification = (type: 'entrada' | 'salida', time: string) => {
+    console.log(`Triggering alarm notification for ${type} (${time})...`);
+    
+    // Play chime sound
+    playAlarmSound();
+
+    // Trigger device vibration if supported
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([300, 100, 300]);
+    }
+
+    // Set local visual overlay banner
+    setActiveAlarm({ type, time });
+
+    // Send native OS notification if permission is granted
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('Fichaje.click', {
+          body: `¡Hora de fichar la ${type}! Horario asignado: ${time}`,
+          icon: '/fichaje/icono.png'
+        });
+      } catch (e) {
+        console.error('Failed to send browser notification:', e);
+      }
+    }
+  };
+
+  // Background checker for entry and exit schedule window
+  useEffect(() => {
+    if (!alarmEnabled) return;
+
+    const checkAlarmTime = () => {
+      const now = new Date();
+      const schedule = user.weeklySchedule || {
+        '1': { enabled: true, start: '09:00', end: '18:00' },
+        '2': { enabled: true, start: '09:00', end: '18:00' },
+        '3': { enabled: true, start: '09:00', end: '18:00' },
+        '4': { enabled: true, start: '09:00', end: '18:00' },
+        '5': { enabled: true, start: '09:00', end: '18:00' },
+        '6': { enabled: false, start: '09:00', end: '18:00' },
+        '0': { enabled: false, start: '09:00', end: '18:00' },
+      };
+
+      const dayKey = String(now.getDay());
+      const parsedSchedule = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+      const todaySched = parsedSchedule[dayKey];
+
+      if (!todaySched || !todaySched.enabled) return;
+
+      const todayStr = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+
+      // Convert start and end times to minutes from midnight
+      const [startH, startM] = todaySched.start.split(':').map(Number);
+      const [endH, endM] = todaySched.end.split(':').map(Number);
+
+      const startMins = startH * 60 + startM;
+      const endMins = endH * 60 + endM;
+
+      const currentMins = now.getHours() * 60 + now.getMinutes();
+
+      // Check Entry Alarm: [startMins - 2, startMins + 2]
+      const isStartWindow = currentMins >= startMins - 2 && currentMins <= startMins + 2;
+      if (isStartWindow && !todayStatus.hasClockedIn && lastStartAlarmDate !== todayStr) {
+        setLastStartAlarmDate(todayStr);
+        triggerAlarmNotification('entrada', todaySched.start);
+      }
+
+      // Check Exit Alarm: [endMins - 2, endMins + 2]
+      const isEndWindow = currentMins >= endMins - 2 && currentMins <= endMins + 2;
+      if (isEndWindow && todayStatus.isActive && lastEndAlarmDate !== todayStr) {
+        setLastEndAlarmDate(todayStr);
+        triggerAlarmNotification('salida', todaySched.end);
+      }
+    };
+
+    // Run check immediately on mount/focus and then every 20 seconds
+    checkAlarmTime();
+    const interval = setInterval(checkAlarmTime, 20000);
+
+    return () => clearInterval(interval);
+  }, [alarmEnabled, todayStatus.hasClockedIn, todayStatus.isActive, lastStartAlarmDate, lastEndAlarmDate, user.weeklySchedule]);
 
   const handleToggleGps = () => {
     if (gpsPermission === 'granted') {
@@ -771,6 +901,80 @@ export default function MovilClient({
 
   return (
     <div className="pwa-layout">
+      {activeAlarm && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '20px',
+          right: '20px',
+          backgroundColor: 'var(--primary)',
+          color: 'white',
+          padding: '16px',
+          borderRadius: '12px',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+          border: '1.5px solid rgba(255, 255, 255, 0.2)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Bell size={20} />
+            </div>
+            <div style={{ flexGrow: 1 }}>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>¡Recordatorio de Fichaje!</h4>
+              <p style={{ margin: '2px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
+                Es hora de fichar la <strong>{activeAlarm.type}</strong> ({activeAlarm.time}).
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button 
+              onClick={() => setActiveAlarm(null)}
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              Ignorar
+            </button>
+            <button 
+              onClick={() => {
+                setActiveAlarm(null);
+                setActiveTab(0);
+              }}
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                backgroundColor: 'white',
+                color: 'var(--primary)',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 700
+              }}
+            >
+              Fichar Ahora
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* CABECERA PWA */}
       <header className="pwa-header">
         <div className="pwa-user-badge">
@@ -1518,6 +1722,50 @@ export default function MovilClient({
                   <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>
                     {user.contractType.toLowerCase()}
                   </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Ajustes y Alarmas */}
+            <div className="pwa-card" style={{ padding: '16px 20px' }}>
+              <div className="pwa-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '15px', fontWeight: 700 }}>
+                <Bell size={18} style={{ color: 'var(--primary)' }} />
+                <span>Alertas y Recordatorios</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ flexGrow: 1, paddingRight: '12px' }}>
+                    <span style={{ fontWeight: 600, display: 'block', color: 'var(--pwa-text-primary)' }}>Alarmas de Fichaje</span>
+                    <span style={{ color: 'var(--pwa-text-secondary)', fontSize: '11px', lineHeight: '1.3', display: 'block', marginTop: '2px' }}>
+                      Avisar con un sonido y notificación 2 minutos antes y después del horario de entrada y salida.
+                    </span>
+                  </div>
+                  <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', flexShrink: 0 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={alarmEnabled} 
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setAlarmEnabled(checked);
+                        localStorage.setItem('fichaje_alarma_enabled', checked ? 'true' : 'false');
+                        if (checked && 'Notification' in window && Notification.permission === 'default') {
+                          Notification.requestPermission();
+                        }
+                      }}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span style={{
+                      position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                      backgroundColor: alarmEnabled ? 'var(--primary)' : '#cbd5e1',
+                      transition: '.4s', borderRadius: '24px'
+                    }}>
+                      <span style={{
+                        position: 'absolute', content: '""', height: '18px', width: '18px', left: '3px', bottom: '3px',
+                        backgroundColor: 'white', transition: '.4s', borderRadius: '50%',
+                        transform: alarmEnabled ? 'translateX(20px)' : 'none'
+                      }} />
+                    </span>
+                  </label>
                 </div>
               </div>
             </div>
