@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { saveEmployee } from '@/app/actions/admin';
 import { Plus, Search, Edit2, X, Loader2, ShieldCheck, UserCheck } from 'lucide-react';
 import { Role, ContractType } from '@prisma/client';
@@ -36,6 +36,63 @@ export default function EmployeesClient({
 }: EmployeesClientProps) {
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [search, setSearch] = useState('');
+  
+  // Sub-tabs state
+  const [activeSubTab, setActiveSubTab] = useState<'list' | 'scheduler'>('list');
+  const [selectedSchedEmployeeId, setSelectedSchedEmployeeId] = useState(initialEmployees[0]?.id || '');
+  const [schedSchedule, setSchedSchedule] = useState<Record<string, { enabled: boolean; start: string; end: string }>>({
+    '1': { enabled: true, start: '09:00', end: '18:00' },
+    '2': { enabled: true, start: '09:00', end: '18:00' },
+    '3': { enabled: true, start: '09:00', end: '18:00' },
+    '4': { enabled: true, start: '09:00', end: '18:00' },
+    '5': { enabled: true, start: '09:00', end: '18:00' },
+    '6': { enabled: false, start: '09:00', end: '18:00' },
+    '0': { enabled: false, start: '09:00', end: '18:00' },
+  });
+
+  const [dragState, setDragState] = useState<{
+    dayKey: string;
+    mode: 'left' | 'right' | 'center';
+    startX: number;
+    initialStartMins: number;
+    initialEndMins: number;
+    containerWidth: number;
+  } | null>(null);
+
+  const selectedEmp = employees.find(e => e.id === selectedSchedEmployeeId);
+
+  useEffect(() => {
+    if (selectedEmp) {
+      if (selectedEmp.weeklySchedule) {
+        try {
+          const parsed = typeof selectedEmp.weeklySchedule === 'string'
+            ? JSON.parse(selectedEmp.weeklySchedule)
+            : selectedEmp.weeklySchedule;
+          setSchedSchedule(parsed);
+        } catch (e) {
+          setSchedSchedule({
+            '1': { enabled: true, start: '09:00', end: '18:00' },
+            '2': { enabled: true, start: '09:00', end: '18:00' },
+            '3': { enabled: true, start: '09:00', end: '18:00' },
+            '4': { enabled: true, start: '09:00', end: '18:00' },
+            '5': { enabled: true, start: '09:00', end: '18:00' },
+            '6': { enabled: false, start: '09:00', end: '18:00' },
+            '0': { enabled: false, start: '09:00', end: '18:00' },
+          });
+        }
+      } else {
+        setSchedSchedule({
+          '1': { enabled: true, start: '09:00', end: '18:00' },
+          '2': { enabled: true, start: '09:00', end: '18:00' },
+          '3': { enabled: true, start: '09:00', end: '18:00' },
+          '4': { enabled: true, start: '09:00', end: '18:00' },
+          '5': { enabled: true, start: '09:00', end: '18:00' },
+          '6': { enabled: false, start: '09:00', end: '18:00' },
+          '0': { enabled: false, start: '09:00', end: '18:00' },
+        });
+      }
+    }
+  }, [selectedSchedEmployeeId, employees]);
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -189,6 +246,113 @@ export default function EmployeesClient({
     }
   };
 
+  // --- CONTROLES DEL PLANIFICADOR INTERACTIVO ---
+  const handlePointerDown = (
+    e: React.PointerEvent<HTMLDivElement>,
+    dayKey: string,
+    mode: 'left' | 'right' | 'center'
+  ) => {
+    e.preventDefault();
+    const trackElement = document.getElementById(`track-${dayKey}`);
+    if (!trackElement) return;
+
+    const rect = trackElement.getBoundingClientRect();
+    const daySched = schedSchedule[dayKey];
+    if (!daySched) return;
+
+    const startMins = timeToMinutes(daySched.start);
+    const endMins = timeToMinutes(daySched.end);
+
+    setDragState({
+      dayKey,
+      mode,
+      startX: e.clientX,
+      initialStartMins: startMins,
+      initialEndMins: endMins,
+      containerWidth: rect.width
+    });
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState) return;
+    e.preventDefault();
+
+    const deltaX = e.clientX - dragState.startX;
+    const deltaMins = Math.round((deltaX / dragState.containerWidth) * 1440);
+    const snappedDelta = Math.round(deltaMins / 15) * 15;
+
+    let newStart = dragState.initialStartMins;
+    let newEnd = dragState.initialEndMins;
+
+    if (dragState.mode === 'left') {
+      newStart = Math.max(0, Math.min(dragState.initialEndMins - 15, dragState.initialStartMins + snappedDelta));
+    } else if (dragState.mode === 'right') {
+      newEnd = Math.max(dragState.initialStartMins + 15, Math.min(1440, dragState.initialEndMins + snappedDelta));
+    } else if (dragState.mode === 'center') {
+      const duration = dragState.initialEndMins - dragState.initialStartMins;
+      newStart = Math.max(0, Math.min(1440 - duration, dragState.initialStartMins + snappedDelta));
+      newEnd = newStart + duration;
+    }
+
+    setSchedSchedule((prev) => ({
+      ...prev,
+      [dragState.dayKey]: {
+        ...prev[dragState.dayKey],
+        start: minutesToTime(newStart),
+        end: minutesToTime(newEnd)
+      }
+    }));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState) return;
+    e.preventDefault();
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setDragState(null);
+  };
+
+  const handleSaveScheduler = async () => {
+    if (!selectedEmp) return;
+    setLoading(true);
+    setError('');
+
+    try {
+      await saveEmployee({
+        id: selectedEmp.id,
+        name: selectedEmp.name,
+        email: selectedEmp.email,
+        phone: selectedEmp.phone || '',
+        role: selectedEmp.role as any,
+        contractType: selectedEmp.contractType as any,
+        isActive: selectedEmp.isActive,
+        departmentId: selectedEmp.departmentId || undefined,
+        workCenterId: selectedEmp.workCenterId || undefined,
+        dailyContractedHours: selectedEmp.dailyContractedHours,
+        monthlyContractedHours: selectedEmp.monthlyContractedHours,
+        weeklySchedule: schedSchedule,
+        allowOutsideSchedule: selectedEmp.allowOutsideSchedule,
+      });
+      alert('Horario guardado con éxito.');
+      window.location.reload();
+    } catch (err: any) {
+      setError(err.message || 'Error al guardar el horario.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDaySchedToggle = (dayKey: string, enabled: boolean) => {
+    setSchedSchedule(prev => ({
+      ...prev,
+      [dayKey]: {
+        ...prev[dayKey],
+        enabled
+      }
+    }));
+  };
+
   // Filtrar empleados según búsqueda
   const filteredEmployees = employees.filter(
     (emp) =>
@@ -205,104 +369,384 @@ export default function EmployeesClient({
           <h1 className="page-title">Empleados</h1>
           <p className="page-subtitle">Gestiona la plantilla de empleados, sus contratos, roles y centros.</p>
         </div>
-        <button onClick={openCreateModal} className="btn btn-primary">
-          <Plus size={18} />
-          Nuevo empleado
+        {activeSubTab === 'list' && (
+          <button onClick={openCreateModal} className="btn btn-primary">
+            <Plus size={18} />
+            Nuevo empleado
+          </button>
+        )}
+      </div>
+
+      {/* SUB-TABS (SUBMENU) */}
+      <div className="premium-card" style={{ padding: '6px 12px', display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('list')}
+          style={{
+            padding: '8px 16px',
+            fontSize: '14px',
+            fontWeight: 600,
+            color: activeSubTab === 'list' ? 'var(--primary)' : 'var(--text-secondary)',
+            backgroundColor: activeSubTab === 'list' ? 'rgba(26, 102, 255, 0.08)' : 'transparent',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          Alta y Mantenimiento
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('scheduler')}
+          style={{
+            padding: '8px 16px',
+            fontSize: '14px',
+            fontWeight: 600,
+            color: activeSubTab === 'scheduler' ? 'var(--primary)' : 'var(--text-secondary)',
+            backgroundColor: activeSubTab === 'scheduler' ? 'rgba(26, 102, 255, 0.08)' : 'transparent',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          Planificador Horario
         </button>
       </div>
 
-      {/* FILTROS Y BÚSQUEDA */}
-      <div className="premium-card" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center' }}>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', maxWidth: '360px' }}>
-          <Search size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)' }} />
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Buscar empleado o departamento..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ width: '100%', paddingLeft: '40px' }}
-          />
-        </div>
-      </div>
+      {activeSubTab === 'list' ? (
+        <>
+          {/* FILTROS Y BÚSQUEDA */}
+          <div className="premium-card" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', maxWidth: '360px' }}>
+              <Search size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)' }} />
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Buscar empleado o departamento..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ width: '100%', paddingLeft: '40px' }}
+              />
+            </div>
+          </div>
 
-      {/* TABLA DE EMPLEADOS */}
-      <div className="table-container">
-        <table className="premium-table">
-          <thead>
-            <tr>
-              <th>Empleado</th>
-              <th>Departamento</th>
-              <th>Contrato</th>
-              <th style={{ textAlign: 'center' }}>H. Diarias</th>
-              <th style={{ textAlign: 'center' }}>H. Mensuales</th>
-              <th>Horario</th>
-              <th>Centro de Trabajo</th>
-              <th>Rol</th>
-              <th>Estado</th>
-              <th style={{ textAlign: 'right' }}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEmployees.map((emp) => (
-              <tr key={emp.id}>
-                <td>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 600 }}>{emp.name}</span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{emp.email}</span>
-                  </div>
-                </td>
-                <td>{emp.departmentName}</td>
-                <td>
-                  <span style={{ textTransform: 'capitalize' }}>
-                    {emp.contractType.toLowerCase()}
-                  </span>
-                </td>
-                <td style={{ textAlign: 'center', fontWeight: 600 }}>{emp.dailyContractedHours}h</td>
-                <td style={{ textAlign: 'center', fontWeight: 600 }}>{emp.monthlyContractedHours}h</td>
-                <td>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                    {formatScheduleSummary(emp.weeklySchedule)}
-                  </span>
-                </td>
-                <td>{emp.workCenterName}</td>
-                <td>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 500 }}>
-                    {emp.role === Role.ADMIN ? (
-                      <ShieldCheck size={16} style={{ color: 'var(--primary)' }} />
-                    ) : emp.role === Role.CONSULTANT ? (
-                      <UserCheck size={16} style={{ color: 'var(--accent)' }} />
-                    ) : null}
-                    {emp.role === Role.ADMIN
-                      ? 'Administrador'
-                      : emp.role === Role.CONSULTANT
-                      ? 'Consultor'
-                      : 'Empleado'}
-                  </span>
-                </td>
-                <td>
-                  <span className={`badge ${emp.isActive ? 'badge-success' : 'badge-danger'}`}>
-                    {emp.isActive ? 'Activo' : 'Inactivo'}
-                  </span>
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  <button onClick={() => openEditModal(emp)} className="btn btn-secondary" style={{ padding: '6px 10px' }}>
-                    <Edit2 size={14} />
-                    Editar
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filteredEmployees.length === 0 && (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
-                  No se encontraron empleados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          {/* TABLA DE EMPLEADOS */}
+          <div className="table-container">
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  <th>Empleado</th>
+                  <th>Departamento</th>
+                  <th>Contrato</th>
+                  <th style={{ textAlign: 'center' }}>H. Diarias</th>
+                  <th style={{ textAlign: 'center' }}>H. Mensuales</th>
+                  <th>Horario</th>
+                  <th>Centro de Trabajo</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEmployees.map((emp) => (
+                  <tr key={emp.id}>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: 600 }}>{emp.name}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{emp.email}</span>
+                      </div>
+                    </td>
+                    <td>{emp.departmentName}</td>
+                    <td>
+                      <span style={{ textTransform: 'capitalize' }}>
+                        {emp.contractType.toLowerCase()}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{emp.dailyContractedHours}h</td>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{emp.monthlyContractedHours}h</td>
+                    <td>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                        {formatScheduleSummary(emp.weeklySchedule)}
+                      </span>
+                    </td>
+                    <td>{emp.workCenterName}</td>
+                    <td>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 500 }}>
+                        {emp.role === Role.ADMIN ? (
+                          <ShieldCheck size={16} style={{ color: 'var(--primary)' }} />
+                        ) : emp.role === Role.CONSULTANT ? (
+                          <UserCheck size={16} style={{ color: 'var(--accent)' }} />
+                        ) : null}
+                        {emp.role === Role.ADMIN
+                          ? 'Administrador'
+                          : emp.role === Role.CONSULTANT
+                          ? 'Consultor'
+                          : 'Empleado'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge ${emp.isActive ? 'badge-success' : 'badge-danger'}`}>
+                        {emp.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button onClick={() => openEditModal(emp)} className="btn btn-secondary" style={{ padding: '6px 10px' }}>
+                        <Edit2 size={14} />
+                        Editar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filteredEmployees.length === 0 && (
+                  <tr>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                      No se encontraron empleados.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        /* PLANIFICADOR HORARIO INTERACTIVO (ARRASTRABLE) */
+        <div className="premium-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px' }}>
+            <label className="form-label">Seleccionar Empleado</label>
+            <select
+              className="form-select"
+              value={selectedSchedEmployeeId}
+              onChange={(e) => setSelectedSchedEmployeeId(e.target.value)}
+              style={{ width: '100%' }}
+            >
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name} ({emp.departmentName})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedEmp ? (
+            <div 
+              style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '12px' }}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Horario Semanal de {selectedEmp.name}
+                </h3>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                  * Arrastra los bordes de la barra para ajustar entrada/salida. Arrastra el centro para desplazar el bloque de horario.
+                </span>
+              </div>
+
+              {/* Timeline headers (00:00 to 24:00) */}
+              <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '140px', paddingRight: '12px' }}>
+                <div style={{ position: 'relative', width: '100%', height: '20px', borderBottom: '1.5px solid var(--border-color)' }}>
+                  {Array.from({ length: 13 }).map((_, idx) => {
+                    const hour = idx * 2;
+                    const hourStr = `${hour.toString().padStart(2, '0')}:00`;
+                    return (
+                      <span 
+                        key={idx}
+                        style={{
+                          position: 'absolute',
+                          left: `${(hour / 24) * 100}%`,
+                          transform: 'translateX(-50%)',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)',
+                          top: '-4px'
+                        }}
+                      >
+                        {hourStr}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Weekly rows */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {[
+                  { key: '1', label: 'Lunes' },
+                  { key: '2', label: 'Martes' },
+                  { key: '3', label: 'Miércoles' },
+                  { key: '4', label: 'Jueves' },
+                  { key: '5', label: 'Viernes' },
+                  { key: '6', label: 'Sábado' },
+                  { key: '0', label: 'Domingo' }
+                ].map((day) => {
+                  const daySched = schedSchedule[day.key] || { enabled: false, start: '09:00', end: '18:00' };
+                  const startMins = timeToMinutes(daySched.start);
+                  const endMins = timeToMinutes(daySched.end);
+                  
+                  return (
+                    <div 
+                      key={day.key} 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '16px' 
+                      }}
+                    >
+                      {/* Checkbox and Day Label */}
+                      <div style={{ width: '120px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="checkbox"
+                          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                          checked={daySched.enabled}
+                          onChange={(e) => handleDaySchedToggle(day.key, e.target.checked)}
+                        />
+                        <span style={{ fontSize: '14px', fontWeight: daySched.enabled ? 600 : 400, color: daySched.enabled ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                          {day.label}
+                        </span>
+                      </div>
+
+                      {/* Drag Track Container */}
+                      <div 
+                        id={`track-${day.key}`}
+                        style={{
+                          position: 'relative',
+                          height: '42px',
+                          backgroundColor: daySched.enabled ? '#f1f5f9' : '#f8fafc',
+                          borderRadius: '6px',
+                          border: '1.5px solid',
+                          borderColor: daySched.enabled ? '#cbd5e1' : '#f1f5f9',
+                          flexGrow: 1,
+                          boxShadow: daySched.enabled ? 'inset 0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                          opacity: daySched.enabled ? 1 : 0.5
+                        }}
+                      >
+                        {/* Grid Lines inside the track */}
+                        {Array.from({ length: 13 }).map((_, idx) => (
+                          <div 
+                            key={idx}
+                            style={{
+                              position: 'absolute',
+                              left: `${(idx * 2 / 24) * 100}%`,
+                              top: 0,
+                              bottom: 0,
+                              width: '1px',
+                              backgroundColor: '#e2e8f0',
+                              pointerEvents: 'none'
+                            }}
+                          />
+                        ))}
+
+                        {/* Active working block */}
+                        {daySched.enabled && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: `${(startMins / 1440) * 100}%`,
+                              width: `${((endMins - startMins) / 1440) * 100}%`,
+                              top: '4px',
+                              bottom: '4px',
+                              backgroundColor: 'rgba(26, 102, 255, 0.1)',
+                              border: '1.5px solid var(--primary)',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              cursor: 'grab',
+                              userSelect: 'none',
+                              boxShadow: '0 2px 4px rgba(26, 102, 255, 0.15)'
+                            }}
+                            onPointerDown={(e) => handlePointerDown(e, day.key, 'center')}
+                          >
+                            {/* Left Handle */}
+                            <div
+                              style={{
+                                width: '8px',
+                                height: '100%',
+                                cursor: 'ew-resize',
+                                backgroundColor: 'var(--primary)',
+                                borderRadius: '2px 0 0 2px',
+                                opacity: 0.8
+                              }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                handlePointerDown(e, day.key, 'left');
+                              }}
+                            />
+
+                            {/* Display text in center */}
+                            <span style={{ 
+                              fontSize: '11px', 
+                              fontWeight: 700, 
+                              color: 'var(--primary)', 
+                              pointerEvents: 'none',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              padding: '0 4px'
+                            }}>
+                              {daySched.start} - {daySched.end}
+                            </span>
+
+                            {/* Right Handle */}
+                            <div
+                              style={{
+                                width: '8px',
+                                height: '100%',
+                                cursor: 'ew-resize',
+                                backgroundColor: 'var(--primary)',
+                                borderRadius: '0 2px 2px 0',
+                                opacity: 0.8
+                              }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                handlePointerDown(e, day.key, 'right');
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    // Reset to initial values from selected employee
+                    if (selectedEmp.weeklySchedule) {
+                      try {
+                        setSchedSchedule(typeof selectedEmp.weeklySchedule === 'string' ? JSON.parse(selectedEmp.weeklySchedule) : selectedEmp.weeklySchedule);
+                      } catch(e) {}
+                    }
+                  }} 
+                  className="btn btn-secondary"
+                  disabled={loading}
+                >
+                  Descartar Cambios
+                </button>
+                <button 
+                  type="button" 
+                  onClick={handleSaveScheduler} 
+                  disabled={loading} 
+                  className="btn btn-primary"
+                >
+                  {loading ? <Loader2 className="animate-spin" size={16} /> : null}
+                  Guardar Planificación
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '12px' }}>
+              No hay ningún empleado seleccionado o disponible.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* MODAL CREAR / EDITAR */}
       {isModalOpen && (
@@ -578,4 +1022,16 @@ function formatScheduleSummary(schedule: any): string {
   } catch (e) {
     return 'Por defecto (8h/día)';
   }
+}
+
+function timeToMinutes(timeStr: string): number {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(mins: number): string {
+  const clamped = Math.max(0, Math.min(1440, mins));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
