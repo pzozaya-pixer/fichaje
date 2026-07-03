@@ -795,55 +795,49 @@ export default function MovilClient({
                 </p>
                 {/* Horario de hoy */}
                 {(() => {
-                  if (user.weeklySchedule) {
-                    const today = new Date();
-                    const dayKey = String(today.getDay());
-                    const parsed = typeof user.weeklySchedule === 'string'
-                      ? JSON.parse(user.weeklySchedule)
-                      : user.weeklySchedule;
-                    const dayData = parsed[dayKey];
-                    if (dayData && dayData.enabled) {
-                      return (
-                        <span style={{ 
-                          fontSize: '11px', 
-                          fontWeight: 600, 
-                          color: 'var(--primary)', 
-                          backgroundColor: 'rgba(26, 102, 255, 0.08)', 
-                          padding: '3px 8px', 
-                          borderRadius: '12px' 
-                        }}>
-                          Hoy: {dayData.start} - {dayData.end}
-                        </span>
-                      );
-                    } else {
-                      return (
-                        <span style={{ 
-                          fontSize: '11px', 
-                          fontWeight: 600, 
-                          color: 'var(--pwa-text-secondary)', 
-                          backgroundColor: 'rgba(0, 0, 0, 0.05)', 
-                          padding: '3px 8px', 
-                          borderRadius: '12px',
-                          fontStyle: 'italic'
-                        }}>
-                          Hoy: No laborable
-                        </span>
-                      );
-                    }
+                  const schedule = user.weeklySchedule || {
+                    '1': { enabled: true, start: '09:00', end: '18:00' },
+                    '2': { enabled: true, start: '09:00', end: '18:00' },
+                    '3': { enabled: true, start: '09:00', end: '18:00' },
+                    '4': { enabled: true, start: '09:00', end: '18:00' },
+                    '5': { enabled: true, start: '09:00', end: '18:00' },
+                    '6': { enabled: false, start: '09:00', end: '18:00' },
+                    '0': { enabled: false, start: '09:00', end: '18:00' },
+                  };
+                  const today = new Date();
+                  const dayKey = String(today.getDay());
+                  const parsed = typeof schedule === 'string'
+                    ? JSON.parse(schedule)
+                    : schedule;
+                  const dayData = parsed[dayKey];
+                  if (dayData && dayData.enabled) {
+                    return (
+                      <span style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 600, 
+                        color: 'var(--primary)', 
+                        backgroundColor: 'rgba(26, 102, 255, 0.08)', 
+                        padding: '3px 8px', 
+                        borderRadius: '12px' 
+                      }}>
+                        Hoy: {dayData.start} - {dayData.end}
+                      </span>
+                    );
+                  } else {
+                    return (
+                      <span style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 600, 
+                        color: 'var(--pwa-text-secondary)', 
+                        backgroundColor: 'rgba(0, 0, 0, 0.05)', 
+                        padding: '3px 8px', 
+                        borderRadius: '12px',
+                        fontStyle: 'italic'
+                      }}>
+                        Hoy: No laborable
+                      </span>
+                    );
                   }
-                  return (
-                    <span style={{ 
-                      fontSize: '11px', 
-                      fontWeight: 600, 
-                      color: 'var(--pwa-text-secondary)', 
-                      backgroundColor: 'rgba(0, 0, 0, 0.05)', 
-                      padding: '3px 8px', 
-                      borderRadius: '12px',
-                      fontStyle: 'italic'
-                    }}>
-                      Hoy: 8h (estándar)
-                    </span>
-                  );
                 })()}
               </div>
             </div>
@@ -1534,8 +1528,18 @@ export default function MovilClient({
                 <span>Mi horario semanal</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                {user.weeklySchedule ? (
-                  Object.entries(user.weeklySchedule as Record<string, { enabled: boolean; start: string; end: string }>)
+                {(() => {
+                  const schedule = user.weeklySchedule || {
+                    '1': { enabled: true, start: '09:00', end: '18:00' },
+                    '2': { enabled: true, start: '09:00', end: '18:00' },
+                    '3': { enabled: true, start: '09:00', end: '18:00' },
+                    '4': { enabled: true, start: '09:00', end: '18:00' },
+                    '5': { enabled: true, start: '09:00', end: '18:00' },
+                    '6': { enabled: false, start: '09:00', end: '18:00' },
+                    '0': { enabled: false, start: '09:00', end: '18:00' },
+                  };
+                  const parsed = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+                  return Object.entries(parsed as Record<string, { enabled: boolean; start: string; end: string }>)
                     .sort(([a], [b]) => {
                       const order = ['1', '2', '3', '4', '5', '6', '0'];
                       return order.indexOf(a) - order.indexOf(b);
@@ -1568,12 +1572,8 @@ export default function MovilClient({
                           </span>
                         </div>
                       );
-                    })
-                ) : (
-                  <p style={{ color: 'var(--pwa-text-secondary)', fontStyle: 'italic', textAlign: 'center', margin: 0 }}>
-                    Sin horario específico establecido.
-                  </p>
-                )}
+                    });
+                })()}
               </div>
             </div>
 
