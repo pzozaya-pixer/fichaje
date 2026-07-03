@@ -772,11 +772,35 @@ export default function EmployeesClient({
                 <button 
                   type="button" 
                   onClick={() => {
-                    // Reset to initial values from selected employee
-                    if (selectedEmp.weeklySchedule) {
-                      try {
-                        setSchedSchedule(typeof selectedEmp.weeklySchedule === 'string' ? JSON.parse(selectedEmp.weeklySchedule) : selectedEmp.weeklySchedule);
-                      } catch(e) {}
+                    if (selectedEmp) {
+                      if (selectedEmp.weeklySchedule) {
+                        try {
+                          const parsed = typeof selectedEmp.weeklySchedule === 'string'
+                            ? JSON.parse(selectedEmp.weeklySchedule)
+                            : selectedEmp.weeklySchedule;
+                          setSchedSchedule(parsed);
+                        } catch (e) {
+                          setSchedSchedule({
+                            '1': { enabled: true, start: '09:00', end: '18:00' },
+                            '2': { enabled: true, start: '09:00', end: '18:00' },
+                            '3': { enabled: true, start: '09:00', end: '18:00' },
+                            '4': { enabled: true, start: '09:00', end: '18:00' },
+                            '5': { enabled: true, start: '09:00', end: '18:00' },
+                            '6': { enabled: false, start: '09:00', end: '18:00' },
+                            '0': { enabled: false, start: '09:00', end: '18:00' },
+                          });
+                        }
+                      } else {
+                        setSchedSchedule({
+                          '1': { enabled: true, start: '09:00', end: '18:00' },
+                          '2': { enabled: true, start: '09:00', end: '18:00' },
+                          '3': { enabled: true, start: '09:00', end: '18:00' },
+                          '4': { enabled: true, start: '09:00', end: '18:00' },
+                          '5': { enabled: true, start: '09:00', end: '18:00' },
+                          '6': { enabled: false, start: '09:00', end: '18:00' },
+                          '0': { enabled: false, start: '09:00', end: '18:00' },
+                        });
+                      }
                     }
                   }} 
                   className="btn btn-secondary"
