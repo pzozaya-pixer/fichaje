@@ -15,6 +15,16 @@ function formatDurationHM(ms: number): string {
   return `${hours}:${minutes}`;
 }
 
+function formatBalanceHM(ms: number): string {
+  const isNegative = ms < 0;
+  const absMs = Math.abs(ms);
+  const totalMinutes = Math.floor(absMs / (1000 * 60));
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const minutes = String(totalMinutes % 60).padStart(2, '0');
+  const formatted = `${hours}:${minutes}`;
+  return isNegative ? `-${formatted}` : `+${formatted}`;
+}
+
 // Estructura de datos esperada para los fichajes en los exportadores
 export interface ClockInExportData {
   employeeName: string;
@@ -47,8 +57,8 @@ export async function generateExcelReport(
     { header: 'Entrada', key: 'entry', width: 10 },
     { header: 'Salida', key: 'exit', width: 10 },
     { header: 'Pausas (min)', key: 'breaks', width: 12 },
-    { header: 'Horas Trabajadas', key: 'hours', width: 18 },
-    { header: 'Horas Extra', key: 'extra', width: 12 },
+    { header: 'Horas Netas', key: 'hours', width: 18 },
+    { header: 'Balance', key: 'extra', width: 12 },
     { header: 'Tipo', key: 'type', width: 12 },
   ];
 
@@ -79,8 +89,8 @@ export async function generateExcelReport(
     'Entrada',
     'Salida',
     'Pausas (min)',
-    'Horas Trabajadas',
-    'Horas Extra',
+    'Horas Netas',
+    'Balance',
     'Tipo',
   ];
 
@@ -109,8 +119,8 @@ export async function generateExcelReport(
       : 'Pendiente';
 
     const breaksMin = Math.round(f.breakMs / (1000 * 60));
-    const hoursNet = formatDurationHM(f.durationMs);
-    const extraHours = f.durationMs > 8 * 3600 * 1000 ? formatDurationHM(f.durationMs - 8 * 3600 * 1000) : '00:00';
+    const hoursNet = parseFloat((f.durationMs / (1000 * 60 * 60)).toFixed(2));
+    const extraHours = parseFloat(((f.durationMs - 8 * 3600 * 1000) / (1000 * 60 * 60)).toFixed(2));
 
     const row = worksheet.addRow({
       name: f.employeeName,
@@ -241,7 +251,7 @@ export async function generatePDFReport(
     doc.text('Hora Salida', 200, tableTop + 6);
     doc.text('Pausas', 280, tableTop + 6);
     doc.text('Horas Netas', 350, tableTop + 6);
-    doc.text('Horas Extra', 420, tableTop + 6);
+    doc.text('Balance', 420, tableTop + 6);
     doc.text('Tipo', 490, tableTop + 6);
 
     let y = tableTop + rowHeight;
@@ -270,12 +280,10 @@ export async function generatePDFReport(
 
       const breaksMin = Math.round(f.breakMs / (1000 * 60));
       const hoursNet = formatDurationHM(f.durationMs);
-      const extraHours = f.durationMs > 8 * 3600 * 1000 ? formatDurationHM(f.durationMs - 8 * 3600 * 1000) : '00:00';
+      const extraHours = formatBalanceHM(f.durationMs - 8 * 3600 * 1000);
 
       totalWorkedMs += f.durationMs;
-      if (f.durationMs > 8 * 3600 * 1000) {
-        totalExtraMs += f.durationMs - 8 * 3600 * 1000;
-      }
+      totalExtraMs += f.durationMs - 8 * 3600 * 1000;
 
       doc.fillColor('#0F172A');
       doc.text(dateStr, 45, y + 6);
@@ -297,7 +305,7 @@ export async function generatePDFReport(
     doc.fillColor('#0F172A').font('Helvetica-Bold');
     doc.text('TOTALES', 45, y + 6);
     doc.text(formatDurationHM(totalWorkedMs), 350, y + 6);
-    doc.text(formatDurationHM(totalExtraMs), 420, y + 6);
+    doc.text(formatBalanceHM(totalExtraMs), 420, y + 6);
 
     y += rowHeight + 30;
 

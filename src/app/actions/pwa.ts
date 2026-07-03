@@ -103,6 +103,32 @@ export async function clockInAction(lat: number, lng: number) {
   const user = await getCurrentUser();
   if (!user) return { success: false, message: 'Sesión no válida.' };
 
+  // Validar restricción de horario (+/- 5 minutos de margen)
+  if (user.weeklySchedule && !user.allowOutsideSchedule) {
+    const today = new Date();
+    const dayKey = String(today.getDay());
+    const schedule = user.weeklySchedule as Record<string, { enabled: boolean; start: string; end: string }>;
+    const daySched = schedule[dayKey];
+
+    if (!daySched || !daySched.enabled) {
+      return {
+        success: false,
+        message: 'No tienes jornada laboral programada para hoy. Contacta con tu administrador para fichar fuera de horario.',
+      };
+    }
+
+    const currentMinutes = today.getHours() * 60 + today.getMinutes();
+    const [startH, startM] = daySched.start.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+
+    if (Math.abs(currentMinutes - startMinutes) > 5) {
+      return {
+        success: false,
+        message: `Fichaje denegado: solo puedes fichar la entrada dentro del margen de 5 minutos de tu horario programado (${daySched.start}). Para fichar fuera de este rango, solicita autorización a tu administrador.`,
+      };
+    }
+  }
+
   if (!user.workCenter) {
     return { success: false, message: 'No tienes un centro de trabajo asignado. Contacta con RRHH.' };
   }
@@ -153,6 +179,32 @@ export async function clockInAction(lat: number, lng: number) {
 export async function clockOutAction(lat: number, lng: number) {
   const user = await getCurrentUser();
   if (!user) return { success: false, message: 'Sesión no válida.' };
+
+  // Validar restricción de horario (+/- 5 minutos de margen)
+  if (user.weeklySchedule && !user.allowOutsideSchedule) {
+    const today = new Date();
+    const dayKey = String(today.getDay());
+    const schedule = user.weeklySchedule as Record<string, { enabled: boolean; start: string; end: string }>;
+    const daySched = schedule[dayKey];
+
+    if (!daySched || !daySched.enabled) {
+      return {
+        success: false,
+        message: 'No tienes jornada laboral programada para hoy. Contacta con tu administrador para fichar fuera de horario.',
+      };
+    }
+
+    const currentMinutes = today.getHours() * 60 + today.getMinutes();
+    const [endH, endM] = daySched.end.split(':').map(Number);
+    const endMinutes = endH * 60 + endM;
+
+    if (Math.abs(currentMinutes - endMinutes) > 5) {
+      return {
+        success: false,
+        message: `Fichaje denegado: solo puedes fichar la salida dentro del margen de 5 minutos de tu horario programado (${daySched.end}). Para fichar fuera de este rango, solicita autorización a tu administrador.`,
+      };
+    }
+  }
 
   if (!user.workCenter) {
     return { success: false, message: 'No tienes un centro de trabajo asignado.' };
@@ -379,7 +431,7 @@ export async function getMySummary() {
   const targetHours = 20 * 8; // 20 días hábiles de media * 8h
   const progressPercentage = Math.min(100, Math.round((hoursWorked / targetHours) * 100));
 
-  // Horas extra (cualquier tiempo por encima de 8h diarias o acumulado)
+  // Balance (cualquier tiempo por encima de 8h diarias o acumulado)
   // Calculamos el exceso diario
   let extraHours = 0;
   fichajes.forEach((f) => {

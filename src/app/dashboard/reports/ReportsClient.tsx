@@ -71,7 +71,7 @@ export default function ReportsClient({
             <Calendar size={20} />
           </div>
           <div>
-            <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Horas Extra</p>
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Balance</p>
             <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--warning)' }}>{reportsData.totalOvertimeHours}h</p>
           </div>
         </div>

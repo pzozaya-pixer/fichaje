@@ -265,10 +265,10 @@ export default function DashboardClient({
           </div>
         </div>
 
-        {/* Horas Extra */}
+        {/* Balance */}
         <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Horas extra</span>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Balance</span>
             <TrendingUp size={20} style={{ color: 'var(--warning)' }} />
           </div>
           <div>

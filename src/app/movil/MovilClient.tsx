@@ -61,6 +61,7 @@ interface MovilClientProps {
     role: string;
     contractType: string;
     department: string;
+    weeklySchedule?: any;
     workCenter: {
       name: string;
       latitude: number;
@@ -491,9 +492,13 @@ export default function MovilClient({
 
   const formatHoursDecimal = (hoursDecimal: number) => {
     const totalMinutes = Math.round(hoursDecimal * 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    if (totalMinutes === 0) return '00:00';
+    const isNegative = totalMinutes < 0;
+    const absMinutes = Math.abs(totalMinutes);
+    const hours = Math.floor(absMinutes / 60);
+    const minutes = absMinutes % 60;
+    const formatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    return isNegative ? `-${formatted}` : `+${formatted}`;
   };
 
   // --- VACACIONES HELPERS ---
@@ -784,9 +789,63 @@ export default function MovilClient({
               <h2 style={{ fontSize: '24px', fontFamily: 'var(--font-title)', fontWeight: 700 }}>
                 Mi jornada
               </h2>
-              <p style={{ fontSize: '13px', color: 'var(--pwa-text-secondary)' }}>
-                {formatDateDMA(new Date())}
-              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontSize: '13px', color: 'var(--pwa-text-secondary)', margin: 0 }}>
+                  {formatDateDMA(new Date())}
+                </p>
+                {/* Horario de hoy */}
+                {(() => {
+                  if (user.weeklySchedule) {
+                    const today = new Date();
+                    const dayKey = String(today.getDay());
+                    const parsed = typeof user.weeklySchedule === 'string'
+                      ? JSON.parse(user.weeklySchedule)
+                      : user.weeklySchedule;
+                    const dayData = parsed[dayKey];
+                    if (dayData && dayData.enabled) {
+                      return (
+                        <span style={{ 
+                          fontSize: '11px', 
+                          fontWeight: 600, 
+                          color: 'var(--primary)', 
+                          backgroundColor: 'rgba(26, 102, 255, 0.08)', 
+                          padding: '3px 8px', 
+                          borderRadius: '12px' 
+                        }}>
+                          Hoy: {dayData.start} - {dayData.end}
+                        </span>
+                      );
+                    } else {
+                      return (
+                        <span style={{ 
+                          fontSize: '11px', 
+                          fontWeight: 600, 
+                          color: 'var(--pwa-text-secondary)', 
+                          backgroundColor: 'rgba(0, 0, 0, 0.05)', 
+                          padding: '3px 8px', 
+                          borderRadius: '12px',
+                          fontStyle: 'italic'
+                        }}>
+                          Hoy: No laborable
+                        </span>
+                      );
+                    }
+                  }
+                  return (
+                    <span style={{ 
+                      fontSize: '11px', 
+                      fontWeight: 600, 
+                      color: 'var(--pwa-text-secondary)', 
+                      backgroundColor: 'rgba(0, 0, 0, 0.05)', 
+                      padding: '3px 8px', 
+                      borderRadius: '12px',
+                      fontStyle: 'italic'
+                    }}>
+                      Hoy: 8h (estándar)
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
 
             {/* Tarjeta de Ubicación GPS */}
@@ -1010,7 +1069,7 @@ export default function MovilClient({
                 <p style={{ fontSize: '10px', color: 'var(--pwa-text-secondary)' }}>Este mes</p>
               </div>
               <div className="pwa-card" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <p style={{ fontSize: '11px', color: 'var(--pwa-text-secondary)' }}>Horas extra</p>
+                <p style={{ fontSize: '11px', color: 'var(--pwa-text-secondary)' }}>Balance</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: 'var(--warning)' }}>
                   {formatHoursDecimal(summary.extraHours)}
                 </p>
@@ -1462,9 +1521,59 @@ export default function MovilClient({
                   <span style={{ fontWeight: 600 }}>{formatHoursDecimal(summary.hoursWorked)} / {summary.targetHours}:00</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--pwa-text-secondary)' }}>Horas extra</span>
+                  <span style={{ color: 'var(--pwa-text-secondary)' }}>Balance</span>
                   <span style={{ fontWeight: 600, color: 'var(--warning)' }}>{formatHoursDecimal(summary.extraHours)}</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Horario Semanal */}
+            <div className="pwa-card">
+              <div className="pwa-card-title">
+                <Clock size={18} style={{ color: 'var(--primary)' }} />
+                <span>Mi horario semanal</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                {user.weeklySchedule ? (
+                  Object.entries(user.weeklySchedule as Record<string, { enabled: boolean; start: string; end: string }>)
+                    .sort(([a], [b]) => {
+                      const order = ['1', '2', '3', '4', '5', '6', '0'];
+                      return order.indexOf(a) - order.indexOf(b);
+                    })
+                    .map(([dayKey, dayData]) => {
+                      const dayNames: Record<string, string> = {
+                        '1': 'Lunes',
+                        '2': 'Martes',
+                        '3': 'Miércoles',
+                        '4': 'Jueves',
+                        '5': 'Viernes',
+                        '6': 'Sábado',
+                        '0': 'Domingo',
+                      };
+                      return (
+                        <div key={dayKey} style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--pwa-border)', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 500, color: dayData.enabled ? 'var(--pwa-text-primary)' : 'var(--pwa-text-secondary)' }}>
+                            {dayNames[dayKey]}
+                          </span>
+                          <span>
+                            {dayData.enabled ? (
+                              <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                                {dayData.start} - {dayData.end}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--pwa-text-secondary)', fontStyle: 'italic' }}>
+                                No laborable
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })
+                ) : (
+                  <p style={{ color: 'var(--pwa-text-secondary)', fontStyle: 'italic', textAlign: 'center', margin: 0 }}>
+                    Sin horario específico establecido.
+                  </p>
+                )}
               </div>
             </div>
 

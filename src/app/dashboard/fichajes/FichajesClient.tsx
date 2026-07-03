@@ -344,7 +344,8 @@ export default function FichajesClient({
               <th>Entrada</th>
               <th>Salida</th>
               <th>Pausas</th>
-              <th>Horas Netas</th>
+              <th>Horas Trabajadas</th>
+              <th>Balance</th>
               <th>Tipo</th>
               <th style={{ textAlign: 'right' }}>Acciones</th>
             </tr>
@@ -375,7 +376,10 @@ export default function FichajesClient({
                     )}
                   </td>
                   <td>{Math.round(c.breakMs / (1000 * 60))} min</td>
-                  <td style={{ fontWeight: 700 }}>{formatDuration(c.durationMs)}</td>
+                  <td style={{ fontWeight: 500 }}>{formatDuration(c.durationMs)}</td>
+                  <td style={{ fontWeight: 700, color: c.durationMs > 8 * 3600 * 1000 ? 'var(--success)' : c.durationMs < 8 * 3600 * 1000 ? 'var(--danger)' : 'var(--text-primary)' }}>
+                    {formatBalance(c.durationMs)}
+                  </td>
                   <td>
                     <span className={`badge ${c.isManual ? 'badge-warning' : 'badge-info'}`}>
                       {c.isManual ? 'Manual' : 'GPS'}
@@ -600,4 +604,18 @@ export default function FichajesClient({
       )}
     </>
   );
+}
+
+function formatBalance(durationMs: number, targetMs: number = 8 * 3600 * 1000): string {
+  const diffMs = durationMs - targetMs;
+  const isNegative = diffMs < 0;
+  const absMs = Math.abs(diffMs);
+  
+  const totalSeconds = Math.round(absMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  const formatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  return isNegative ? `-${formatted}` : `+${formatted}`;
 }

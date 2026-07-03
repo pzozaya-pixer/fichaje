@@ -48,6 +48,8 @@ export async function saveEmployee(data: {
   workCenterId?: string;
   dailyContractedHours?: number;
   monthlyContractedHours?: number;
+  weeklySchedule?: any;
+  allowOutsideSchedule?: boolean;
 }) {
   const admin = await checkAdmin();
 
@@ -63,6 +65,8 @@ export async function saveEmployee(data: {
     workCenterId: data.workCenterId || null,
     dailyContractedHours: data.dailyContractedHours !== undefined ? data.dailyContractedHours : 8.0,
     monthlyContractedHours: data.monthlyContractedHours !== undefined ? data.monthlyContractedHours : 160.0,
+    weeklySchedule: data.weeklySchedule !== undefined ? data.weeklySchedule : null,
+    allowOutsideSchedule: data.allowOutsideSchedule !== undefined ? data.allowOutsideSchedule : false,
   };
 
   if (data.id) {
@@ -471,7 +475,7 @@ export async function getReportsData(employeeId?: string) {
 
   fichajes.forEach((f) => {
     totalWorkedMs += f.durationMs;
-    // Si la jornada dura más de 8h, se considera horas extra
+    // Si la jornada dura más de 8h, se considera Balance
     const hours = f.durationMs / (1000 * 60 * 60);
     if (hours > 8) {
       totalOvertimeMs += (hours - 8) * 1000 * 60 * 60;
@@ -759,6 +763,8 @@ export async function downloadBackupAction() {
         isActive: u.isActive,
         dailyContractedHours: u.dailyContractedHours,
         monthlyContractedHours: u.monthlyContractedHours,
+        weeklySchedule: u.weeklySchedule,
+        allowOutsideSchedule: u.allowOutsideSchedule,
         clockIns: u.clockIns,
       })),
     };
@@ -894,6 +900,8 @@ export async function restoreBackupAction(backupJson: string, mode: 'complete' |
                 contractType: emp.contractType,
                 dailyContractedHours: emp.dailyContractedHours || null,
                 monthlyContractedHours: emp.monthlyContractedHours || null,
+                weeklySchedule: emp.weeklySchedule || null,
+                allowOutsideSchedule: emp.allowOutsideSchedule ?? false,
                 departmentId: emp.departmentId ? deptMap.get(emp.departmentId) || null : null,
                 workCenterId: emp.workCenterId ? centerMap.get(emp.workCenterId) || null : null,
               },
@@ -912,6 +920,8 @@ export async function restoreBackupAction(backupJson: string, mode: 'complete' |
               isActive: emp.isActive ?? true,
               dailyContractedHours: emp.dailyContractedHours || null,
               monthlyContractedHours: emp.monthlyContractedHours || null,
+              weeklySchedule: emp.weeklySchedule || null,
+              allowOutsideSchedule: emp.allowOutsideSchedule ?? false,
               companyId,
               departmentId: emp.departmentId ? deptMap.get(emp.departmentId) || null : null,
               workCenterId: emp.workCenterId ? centerMap.get(emp.workCenterId) || null : null,

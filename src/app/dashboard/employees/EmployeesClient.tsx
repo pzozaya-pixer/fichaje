@@ -19,6 +19,8 @@ interface Employee {
   workCenterName: string;
   dailyContractedHours: number;
   monthlyContractedHours: number;
+  weeklySchedule?: any;
+  allowOutsideSchedule: boolean;
 }
 
 interface EmployeesClientProps {
@@ -50,9 +52,30 @@ export default function EmployeesClient({
   const [workCenterId, setWorkCenterId] = useState('');
   const [dailyContractedHours, setDailyContractedHours] = useState<number | string>(8.0);
   const [monthlyContractedHours, setMonthlyContractedHours] = useState<number | string>(160.0);
+  const [allowOutsideSchedule, setAllowOutsideSchedule] = useState(false);
+
+  const [weeklySchedule, setWeeklySchedule] = useState<Record<string, { enabled: boolean; start: string; end: string }>>({
+    '1': { enabled: true, start: '09:00', end: '18:00' },
+    '2': { enabled: true, start: '09:00', end: '18:00' },
+    '3': { enabled: true, start: '09:00', end: '18:00' },
+    '4': { enabled: true, start: '09:00', end: '18:00' },
+    '5': { enabled: true, start: '09:00', end: '18:00' },
+    '6': { enabled: false, start: '09:00', end: '18:00' },
+    '0': { enabled: false, start: '09:00', end: '18:00' },
+  });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleDayScheduleChange = (dayKey: string, field: 'enabled' | 'start' | 'end', value: any) => {
+    setWeeklySchedule((prev) => ({
+      ...prev,
+      [dayKey]: {
+        ...prev[dayKey],
+        [field]: value,
+      },
+    }));
+  };
 
   // Abrir modal para crear
   const openCreateModal = () => {
@@ -67,6 +90,16 @@ export default function EmployeesClient({
     setWorkCenterId(workCenters[0]?.id || '');
     setDailyContractedHours(8.0);
     setMonthlyContractedHours(160.0);
+    setAllowOutsideSchedule(false);
+    setWeeklySchedule({
+      '1': { enabled: true, start: '09:00', end: '18:00' },
+      '2': { enabled: true, start: '09:00', end: '18:00' },
+      '3': { enabled: true, start: '09:00', end: '18:00' },
+      '4': { enabled: true, start: '09:00', end: '18:00' },
+      '5': { enabled: true, start: '09:00', end: '18:00' },
+      '6': { enabled: false, start: '09:00', end: '18:00' },
+      '0': { enabled: false, start: '09:00', end: '18:00' },
+    });
     setError('');
     setIsModalOpen(true);
   };
@@ -84,6 +117,37 @@ export default function EmployeesClient({
     setWorkCenterId(emp.workCenterId);
     setDailyContractedHours(emp.dailyContractedHours);
     setMonthlyContractedHours(emp.monthlyContractedHours);
+    setAllowOutsideSchedule(emp.allowOutsideSchedule || false);
+    
+    if (emp.weeklySchedule) {
+      try {
+        const parsed = typeof emp.weeklySchedule === 'string'
+          ? JSON.parse(emp.weeklySchedule)
+          : emp.weeklySchedule;
+        setWeeklySchedule(parsed);
+      } catch (e) {
+        setWeeklySchedule({
+          '1': { enabled: true, start: '09:00', end: '18:00' },
+          '2': { enabled: true, start: '09:00', end: '18:00' },
+          '3': { enabled: true, start: '09:00', end: '18:00' },
+          '4': { enabled: true, start: '09:00', end: '18:00' },
+          '5': { enabled: true, start: '09:00', end: '18:00' },
+          '6': { enabled: false, start: '09:00', end: '18:00' },
+          '0': { enabled: false, start: '09:00', end: '18:00' },
+        });
+      }
+    } else {
+      setWeeklySchedule({
+        '1': { enabled: true, start: '09:00', end: '18:00' },
+        '2': { enabled: true, start: '09:00', end: '18:00' },
+        '3': { enabled: true, start: '09:00', end: '18:00' },
+        '4': { enabled: true, start: '09:00', end: '18:00' },
+        '5': { enabled: true, start: '09:00', end: '18:00' },
+        '6': { enabled: false, start: '09:00', end: '18:00' },
+        '0': { enabled: false, start: '09:00', end: '18:00' },
+      });
+    }
+
     setError('');
     setIsModalOpen(true);
   };
@@ -112,6 +176,8 @@ export default function EmployeesClient({
         workCenterId: workCenterId || undefined,
         dailyContractedHours: parseFloat(dailyContractedHours as any),
         monthlyContractedHours: parseFloat(monthlyContractedHours as any),
+        weeklySchedule: weeklySchedule,
+        allowOutsideSchedule: allowOutsideSchedule,
       });
 
       // Recargar localmente (en una app real revalidatePath hace esto, pero actualizamos el estado para feedback inmediato)
@@ -170,6 +236,7 @@ export default function EmployeesClient({
               <th>Contrato</th>
               <th style={{ textAlign: 'center' }}>H. Diarias</th>
               <th style={{ textAlign: 'center' }}>H. Mensuales</th>
+              <th>Horario</th>
               <th>Centro de Trabajo</th>
               <th>Rol</th>
               <th>Estado</th>
@@ -193,6 +260,11 @@ export default function EmployeesClient({
                 </td>
                 <td style={{ textAlign: 'center', fontWeight: 600 }}>{emp.dailyContractedHours}h</td>
                 <td style={{ textAlign: 'center', fontWeight: 600 }}>{emp.monthlyContractedHours}h</td>
+                <td>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                    {formatScheduleSummary(emp.weeklySchedule)}
+                  </span>
+                </td>
                 <td>{emp.workCenterName}</td>
                 <td>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 500 }}>
@@ -370,6 +442,73 @@ export default function EmployeesClient({
                 </div>
               </div>
 
+              {/* Autorización de Fichaje fuera de horario */}
+              <div className="form-group" style={{ marginTop: '4px' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}>
+                  <input
+                    type="checkbox"
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    checked={allowOutsideSchedule}
+                    onChange={(e) => setAllowOutsideSchedule(e.target.checked)}
+                  />
+                  <span>Autorizar fichar fuera de horario (+/- 5 min)</span>
+                </label>
+              </div>
+
+              {/* Horario semanal específico */}
+              <div style={{ marginTop: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
+                  Horario semanal específico
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[
+                    { key: '1', label: 'Lunes' },
+                    { key: '2', label: 'Martes' },
+                    { key: '3', label: 'Miércoles' },
+                    { key: '4', label: 'Jueves' },
+                    { key: '5', label: 'Viernes' },
+                    { key: '6', label: 'Sábado' },
+                    { key: '0', label: 'Domingo' }
+                  ].map((day) => {
+                    const daySched = weeklySchedule[day.key] || { enabled: false, start: '09:00', end: '18:00' };
+                    return (
+                      <div key={day.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'space-between' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                          <input
+                            type="checkbox"
+                            style={{ width: '16px', height: '16px' }}
+                            checked={daySched.enabled}
+                            onChange={(e) => handleDayScheduleChange(day.key, 'enabled', e.target.checked)}
+                          />
+                          <span style={{ fontSize: '14px', fontWeight: daySched.enabled ? 600 : 400 }}>
+                            {day.label}
+                          </span>
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: daySched.enabled ? 1 : 0.5 }}>
+                          <input
+                            type="time"
+                            className="form-input"
+                            style={{ width: '100px', padding: '4px 8px', fontSize: '13px', minHeight: 'auto' }}
+                            disabled={!daySched.enabled}
+                            value={daySched.start}
+                            onChange={(e) => handleDayScheduleChange(day.key, 'start', e.target.value)}
+                          />
+                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>a</span>
+                          <input
+                            type="time"
+                            className="form-input"
+                            style={{ width: '100px', padding: '4px 8px', fontSize: '13px', minHeight: 'auto' }}
+                            disabled={!daySched.enabled}
+                            value={daySched.end}
+                            onChange={(e) => handleDayScheduleChange(day.key, 'end', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
                   Cancelar
@@ -389,5 +528,54 @@ export default function EmployeesClient({
   // Helper local para evitar un error en setOriginalContractType
   function setOriginalContractType(val: ContractType) {
     setContractType(val);
+  }
+}
+
+function formatScheduleSummary(schedule: any): string {
+  if (!schedule) return 'Por defecto (8h/día)';
+  try {
+    const parsed = typeof schedule === 'string' ? JSON.parse(schedule) : schedule;
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    
+    const enabledDays = Object.entries(parsed)
+      .filter(([_, data]: any) => data.enabled)
+      .map(([dayKey, data]: any) => ({
+        dayNum: Number(dayKey),
+        name: dayNames[Number(dayKey)],
+        start: data.start,
+        end: data.end
+      }));
+      
+    if (enabledDays.length === 0) return 'No laborable';
+    
+    const sortOrder = [1, 2, 3, 4, 5, 6, 0];
+    enabledDays.sort((a, b) => sortOrder.indexOf(a.dayNum) - sortOrder.indexOf(b.dayNum));
+    
+    const groups: string[] = [];
+    let i = 0;
+    while (i < enabledDays.length) {
+      let startIdx = i;
+      let endIdx = i;
+      const currentHours = `${enabledDays[i].start}-${enabledDays[i].end}`;
+      
+      while (
+        endIdx + 1 < enabledDays.length &&
+        `${enabledDays[endIdx + 1].start}-${enabledDays[endIdx + 1].end}` === currentHours &&
+        sortOrder.indexOf(enabledDays[endIdx + 1].dayNum) === sortOrder.indexOf(enabledDays[endIdx].dayNum) + 1
+      ) {
+        endIdx++;
+      }
+      
+      if (startIdx === endIdx) {
+        groups.push(`${enabledDays[startIdx].name}: ${currentHours}`);
+      } else {
+        groups.push(`${enabledDays[startIdx].name}-${enabledDays[endIdx].name}: ${currentHours}`);
+      }
+      i = endIdx + 1;
+    }
+    
+    return groups.join(', ');
+  } catch (e) {
+    return 'Por defecto (8h/día)';
   }
 }

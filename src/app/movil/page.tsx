@@ -37,6 +37,7 @@ export default async function PWAPage() {
         role: user.role,
         contractType: user.contractType,
         department: user.department?.name || 'Sin asignar',
+        weeklySchedule: user.weeklySchedule || null,
         workCenter: user.workCenter
           ? {
               name: user.workCenter.name,
