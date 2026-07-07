@@ -36,6 +36,11 @@ export default async function EmployeesPage() {
       }))}
       departments={departments}
       workCenters={workCenters}
+      subscription={{
+        stripeProductId: user?.company.stripeProductId || null,
+        status: user?.company.subscriptionStatus || 'trialing',
+        trialEndsAt: user?.company.trialEndsAt ? user.company.trialEndsAt.toISOString() : '',
+      }}
     />
   );
 }

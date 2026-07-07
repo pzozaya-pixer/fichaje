@@ -6,10 +6,15 @@ import { prisma } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
-export async function subscribeAction(companyId: string, email: string, plan: 'monthly' | 'annual') {
+export async function subscribeAction(
+  companyId: string,
+  email: string,
+  tier: 'basic' | 'pro' | 'business',
+  period: 'monthly' | 'annual'
+) {
   let checkoutUrl: string;
   try {
-    checkoutUrl = await createCheckoutSession(companyId, email, plan);
+    checkoutUrl = await createCheckoutSession(companyId, email, tier, period);
   } catch (error) {
     console.error('Error creando sesión de Stripe:', error);
     throw new Error('No se pudo crear la sesión de pago de Stripe.');

@@ -64,6 +64,7 @@ interface ConfigClientProps {
     trialEndsAt: string;
     stripeCustomerId: string;
     stripeSubscriptionId?: string;
+    stripeProductId?: string | null;
   };
   company: {
     name: string;
@@ -81,6 +82,14 @@ interface ConfigClientProps {
   companyEmail: string;
   monthlyPrice: string;
   annualPrice: string;
+  prices: {
+    basic_monthly: string;
+    basic_annual: string;
+    pro_monthly: string;
+    pro_annual: string;
+    business_monthly: string;
+    business_annual: string;
+  };
 }
 
 export default function ConfigClient({
@@ -93,6 +102,7 @@ export default function ConfigClient({
   companyEmail,
   monthlyPrice,
   annualPrice,
+  prices,
 }: ConfigClientProps) {
   const searchParams = useSearchParams();
   
@@ -237,6 +247,33 @@ export default function ConfigClient({
   
   // Mensajes de Stripe Checkout
   const [stripeStatus, setStripeStatus] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' });
+
+  // Toggle de período de facturación: 'monthly' o 'annual'
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
+
+  // Helpers de cliente para mapeo de planes
+  function getPlanNameClient(productId: string | null): string {
+    if (!productId) return 'Básica';
+    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 'Básica';
+    if (productId.includes('pro') || productId === 'prod_pro_monthly' || productId === 'prod_pro_annual') return 'Pro';
+    if (productId.includes('business') || productId === 'prod_business_monthly' || productId === 'prod_business_annual') return 'Business';
+    return 'Básica';
+  }
+
+  const isPlanActive = (planName: 'basic' | 'pro' | 'business') => {
+    if (!hasActiveSubscription) return false;
+    const prodId = subscription.stripeProductId;
+    if (planName === 'basic') {
+      return !prodId || prodId === 'prod_Un8zZdgvmqcuay' || prodId === 'prod_Un91TCtSLN7pzx';
+    }
+    if (planName === 'pro') {
+      return prodId === 'prod_pro_monthly' || prodId === 'prod_pro_annual' || (prodId && prodId.includes('pro'));
+    }
+    if (planName === 'business') {
+      return prodId === 'prod_business_monthly' || prodId === 'prod_business_annual' || (prodId && prodId.includes('business'));
+    }
+    return false;
+  };
 
   // Estados para baja de empresa
   const [isDeletionModalOpen, setIsDeletionModalOpen] = useState(false);
@@ -628,10 +665,10 @@ export default function ConfigClient({
   };
 
   // --- ACCIONES STRIPE ---
-  const handleSubscribe = async (plan: 'monthly' | 'annual') => {
+  const handleSubscribe = async (tier: 'basic' | 'pro' | 'business', period: 'monthly' | 'annual') => {
     setStripeLoading(true);
     try {
-      await subscribeAction(companyId, companyEmail, plan);
+      await subscribeAction(companyId, companyEmail, tier, period);
     } catch (err: any) {
       alert(err.message || 'Error al iniciar suscripción de Stripe.');
     } finally {
@@ -734,7 +771,11 @@ export default function ConfigClient({
                 <div>
                   <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Estado de suscripción</p>
                   <p style={{ fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: hasActiveSubscription ? 'var(--success)' : 'var(--warning)' }}>
-                    {subscription.status === 'trialing' || (isTrialActive && !hasActiveSubscription) ? 'Periodo de Prueba' : hasActiveSubscription ? 'Suscripción Activa' : 'Expirada/Inactiva'}
+                    {subscription.status === 'trialing' || (isTrialActive && !hasActiveSubscription) 
+                      ? 'Periodo de Prueba' 
+                      : hasActiveSubscription 
+                        ? `Suscripción Activa (${getPlanNameClient(subscription.stripeProductId || null)})` 
+                        : 'Expirada/Inactiva'}
                   </p>
                 </div>
 
@@ -807,65 +848,280 @@ export default function ConfigClient({
             </div>
 
             {/* Opciones de Pago */}
-            {!hasActiveSubscription ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  Al suscribirte, activarás el acceso ilimitado para tu empresa. Puedes elegir entre pago mensual o anual:
-                </p>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
-                  {/* Plan Mensual */}
-                  <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'var(--bg-primary)' }}>
-                    <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Plan Mensual</h4>
-                    <p style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-title)' }}>
-                      {monthlyPrice} <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>/ mes</span>
-                    </p>
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Pago recurrente mensual. Cancele cuando quiera.</p>
-                    <button
-                      disabled={stripeLoading}
-                      onClick={() => handleSubscribe('monthly')}
-                      className="btn btn-primary"
-                      style={{ marginTop: 'auto', width: '100%' }}
-                    >
-                      {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
-                      Suscribirse Mensual
-                    </button>
-                  </div>
-
-                  {/* Plan Anual */}
-                  <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', border: '2px solid var(--primary)', position: 'relative' }}>
-                    <span className="badge badge-success" style={{ position: 'absolute', top: '-12px', right: '16px' }}>¡AHORRA 2 MESES!</span>
-                    <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Plan Anual</h4>
-                    <p style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-title)' }}>
-                      {annualPrice} <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>/ año</span>
-                    </p>
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Equivalente a {(parseFloat(annualPrice.replace(/[^0-9.]/g, '')) / 12 || 24.16).toFixed(2)}€/mes. Un solo cargo anual.</p>
-                    <button
-                      disabled={stripeLoading}
-                      onClick={() => handleSubscribe('annual')}
-                      className="btn btn-primary"
-                      style={{ marginTop: 'auto', width: '100%', background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)' }}
-                    >
-                      {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
-                      Suscribirse Anual
-                    </button>
-                  </div>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '8px' }}>
+              
+              {/* Selector Toggle de Facturación */}
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '14px', fontWeight: billingPeriod === 'monthly' ? 700 : 500, color: billingPeriod === 'monthly' ? 'var(--primary)' : 'var(--text-secondary)' }}>
+                  Facturación Mensual
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'annual' : 'monthly')}
+                  style={{
+                    width: '46px',
+                    height: '24px',
+                    borderRadius: '999px',
+                    backgroundColor: 'var(--primary)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'background-color 0.3s',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: '#fff',
+                      position: 'absolute',
+                      left: billingPeriod === 'monthly' ? '2px' : '24px',
+                      transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    }}
+                  />
+                </button>
+                <span style={{ fontSize: '14px', fontWeight: billingPeriod === 'annual' ? 700 : 500, color: billingPeriod === 'annual' ? 'var(--primary)' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  Facturación Anual
+                  <span className="badge badge-success" style={{ fontSize: '11px', padding: '2px 6px', backgroundColor: 'var(--success)', color: '#fff', borderRadius: '4px', fontWeight: 700 }}>
+                    AHORRA 2 MESES
+                  </span>
+                </span>
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  Tu suscripción está gestionada a través de Stripe. Puedes ver tus facturas anteriores, actualizar tu tarjeta de crédito o cancelar la suscripción accediendo al portal de clientes de Stripe.
-                </p>
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+
+              {/* Grid de las 3 tarjetas de planes */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
+                
+                {/* 1. PLAN BÁSICA */}
+                <div 
+                  className="premium-card" 
+                  style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '16px', 
+                    backgroundColor: 'var(--bg-primary)',
+                    border: isPlanActive('basic') ? '2px solid var(--success)' : '1px solid var(--border-color)',
+                    position: 'relative',
+                    boxShadow: isPlanActive('basic') ? '0 4px 12px rgba(34, 197, 94, 0.15)' : 'none'
+                  }}
+                >
+                  {isPlanActive('basic') && (
+                    <span 
+                      style={{ 
+                        position: 'absolute', 
+                        top: '-12px', 
+                        right: '16px', 
+                        backgroundColor: 'var(--success)', 
+                        color: '#fff', 
+                        fontSize: '11px', 
+                        fontWeight: 700, 
+                        padding: '2px 8px', 
+                        borderRadius: '4px' 
+                      }}
+                    >
+                      PLAN ACTIVO
+                    </span>
+                  )}
+                  <div>
+                    <h4 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Plan Básica</h4>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>Ideal para pequeñas empresas.</p>
+                  </div>
+                  <p style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-title)', margin: 0 }}>
+                    {billingPeriod === 'monthly' ? prices.basic_monthly : prices.basic_annual}
+                    <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>
+                      {billingPeriod === 'monthly' ? ' / mes' : ' / año'}
+                    </span>
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <li><strong>Hasta 10 empleados</strong> activos</li>
+                    <li>Control de jornada en tiempo real</li>
+                    <li>Geolocalización GPS</li>
+                    <li>Registro de ausencias y vacaciones</li>
+                    <li>Informes obligatorios en PDF / Excel</li>
+                  </ul>
+                  <button
+                    disabled={stripeLoading}
+                    onClick={isPlanActive('basic') ? undefined : (hasActiveSubscription ? handleOpenBilling : () => handleSubscribe('basic', billingPeriod))}
+                    className="btn btn-primary"
+                    style={{ 
+                      marginTop: 'auto', 
+                      width: '100%',
+                      backgroundColor: isPlanActive('basic') ? 'var(--bg-secondary)' : undefined,
+                      color: isPlanActive('basic') ? 'var(--success)' : undefined,
+                      border: isPlanActive('basic') ? '1px solid var(--success)' : undefined,
+                      cursor: isPlanActive('basic') ? 'default' : 'pointer'
+                    }}
+                  >
+                    {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+                    {isPlanActive('basic') ? '✓ Plan Activo' : (hasActiveSubscription ? 'Cambiar a Básica' : 'Suscribirse')}
+                  </button>
+                </div>
+
+                {/* 2. PLAN PRO */}
+                <div 
+                  className="premium-card" 
+                  style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '16px', 
+                    backgroundColor: 'var(--bg-primary)',
+                    border: isPlanActive('pro') ? '2px solid var(--success)' : '2px solid var(--primary)',
+                    position: 'relative',
+                    boxShadow: '0 4px 20px rgba(26, 102, 255, 0.08)'
+                  }}
+                >
+                  <span 
+                    style={{ 
+                      position: 'absolute', 
+                      top: '-12px', 
+                      left: '16px', 
+                      backgroundColor: 'var(--primary)', 
+                      color: '#fff', 
+                      fontSize: '11px', 
+                      fontWeight: 700, 
+                      padding: '2px 8px', 
+                      borderRadius: '4px' 
+                    }}
+                  >
+                    RECOMENDADO
+                  </span>
+                  {isPlanActive('pro') && (
+                    <span 
+                      style={{ 
+                        position: 'absolute', 
+                        top: '-12px', 
+                        right: '16px', 
+                        backgroundColor: 'var(--success)', 
+                        color: '#fff', 
+                        fontSize: '11px', 
+                        fontWeight: 700, 
+                        padding: '2px 8px', 
+                        borderRadius: '4px' 
+                      }}
+                    >
+                      PLAN ACTIVO
+                    </span>
+                  )}
+                  <div>
+                    <h4 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Plan Pro</h4>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>Para empresas en crecimiento.</p>
+                  </div>
+                  <p style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-title)', margin: 0 }}>
+                    {billingPeriod === 'monthly' ? prices.pro_monthly : prices.pro_annual}
+                    <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>
+                      {billingPeriod === 'monthly' ? ' / mes' : ' / año'}
+                    </span>
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <li><strong>Hasta 50 empleados</strong> activos</li>
+                    <li>Todas las funciones del Plan Básica</li>
+                    <li>Copias de seguridad automáticas</li>
+                    <li>Configuración de festivos nacionales</li>
+                    <li>Soporte prioritario por email</li>
+                  </ul>
+                  <button
+                    disabled={stripeLoading}
+                    onClick={isPlanActive('pro') ? undefined : (hasActiveSubscription ? handleOpenBilling : () => handleSubscribe('pro', billingPeriod))}
+                    className="btn btn-primary"
+                    style={{ 
+                      marginTop: 'auto', 
+                      width: '100%',
+                      background: isPlanActive('pro') ? 'var(--bg-secondary)' : 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)',
+                      color: isPlanActive('pro') ? 'var(--success)' : undefined,
+                      border: isPlanActive('pro') ? '1px solid var(--success)' : undefined,
+                      cursor: isPlanActive('pro') ? 'default' : 'pointer'
+                    }}
+                  >
+                    {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+                    {isPlanActive('pro') ? '✓ Plan Activo' : (hasActiveSubscription ? 'Cambiar a Pro' : 'Suscribirse')}
+                  </button>
+                </div>
+
+                {/* 3. PLAN BUSINESS */}
+                <div 
+                  className="premium-card" 
+                  style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '16px', 
+                    backgroundColor: 'var(--bg-primary)',
+                    border: isPlanActive('business') ? '2px solid var(--success)' : '1px solid var(--border-color)',
+                    position: 'relative',
+                    boxShadow: isPlanActive('business') ? '0 4px 12px rgba(34, 197, 94, 0.15)' : 'none'
+                  }}
+                >
+                  {isPlanActive('business') && (
+                    <span 
+                      style={{ 
+                        position: 'absolute', 
+                        top: '-12px', 
+                        right: '16px', 
+                        backgroundColor: 'var(--success)', 
+                        color: '#fff', 
+                        fontSize: '11px', 
+                        fontWeight: 700, 
+                        padding: '2px 8px', 
+                        borderRadius: '4px' 
+                      }}
+                    >
+                      PLAN ACTIVO
+                    </span>
+                  )}
+                  <div>
+                    <h4 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Plan Business</h4>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>Para grandes organizaciones.</p>
+                  </div>
+                  <p style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-title)', margin: 0 }}>
+                    {billingPeriod === 'monthly' ? prices.business_monthly : prices.business_annual}
+                    <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>
+                      {billingPeriod === 'monthly' ? ' / mes' : ' / año'}
+                    </span>
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <li><strong>Empleados ilimitados</strong></li>
+                    <li>Todas las funciones del Plan Pro</li>
+                    <li>Exportación de backups automatizados</li>
+                    <li>Asignación de múltiples administradores</li>
+                    <li>Soporte 24/7 y asistencia telefónica</li>
+                  </ul>
+                  <button
+                    disabled={stripeLoading}
+                    onClick={isPlanActive('business') ? undefined : (hasActiveSubscription ? handleOpenBilling : () => handleSubscribe('business', billingPeriod))}
+                    className="btn btn-primary"
+                    style={{ 
+                      marginTop: 'auto', 
+                      width: '100%',
+                      backgroundColor: isPlanActive('business') ? 'var(--bg-secondary)' : undefined,
+                      color: isPlanActive('business') ? 'var(--success)' : undefined,
+                      border: isPlanActive('business') ? '1px solid var(--success)' : undefined,
+                      cursor: isPlanActive('business') ? 'default' : 'pointer'
+                    }}
+                  >
+                    {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
+                    {isPlanActive('business') ? '✓ Plan Activo' : (hasActiveSubscription ? 'Cambiar a Business' : 'Suscribirse')}
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Botón de gestión general para usuarios suscritos */}
+              {hasActiveSubscription && (
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', width: '100%', margin: 0, marginBottom: '8px' }}>
+                    Tu facturación se procesa de forma segura a través de Stripe. Desde aquí puedes actualizar tu medio de pago, ver facturas o dar de baja el servicio.
+                  </p>
                   <button
                     disabled={stripeLoading}
                     onClick={handleOpenBilling}
                     className="btn btn-secondary"
-                    style={{ display: 'inline-flex', alignSelf: 'flex-start' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
                   >
                     {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
-                    Gestionar Suscripción y Facturas
+                    Gestionar Suscripción en Stripe
                   </button>
 
                   <button
@@ -877,7 +1133,8 @@ export default function ConfigClient({
                       color: 'var(--danger)',
                       border: '1px solid rgba(239, 68, 68, 0.2)',
                       display: 'inline-flex',
-                      alignSelf: 'flex-start',
+                      alignItems: 'center',
+                      gap: '8px',
                       fontWeight: 600,
                       cursor: 'pointer',
                       padding: '10px 16px',
@@ -888,8 +1145,8 @@ export default function ConfigClient({
                     Cancelar Suscripción
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 

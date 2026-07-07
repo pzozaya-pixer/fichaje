@@ -27,12 +27,18 @@ interface EmployeesClientProps {
   initialEmployees: Employee[];
   departments: Array<{ id: string; name: string }>;
   workCenters: Array<{ id: string; name: string }>;
+  subscription: {
+    stripeProductId: string | null;
+    status: string;
+    trialEndsAt: string;
+  };
 }
 
 export default function EmployeesClient({
   initialEmployees,
   departments,
   workCenters,
+  subscription,
 }: EmployeesClientProps) {
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [search, setSearch] = useState('');
@@ -215,6 +221,21 @@ export default function EmployeesClient({
 
   // Abrir modal para crear
   const openCreateModal = () => {
+    const activeEmployeesCount = employees.filter((e) => e.role === Role.EMPLOYEE && e.isActive).length;
+    const limit = subscription.stripeProductId
+      ? (subscription.stripeProductId.includes('pro') || subscription.stripeProductId === 'prod_pro_monthly' || subscription.stripeProductId === 'prod_pro_annual' ? 50 : 
+         subscription.stripeProductId.includes('business') || subscription.stripeProductId === 'prod_business_monthly' || subscription.stripeProductId === 'prod_business_annual' ? Infinity : 10)
+      : 10;
+    const planName = subscription.stripeProductId
+      ? (subscription.stripeProductId.includes('pro') || subscription.stripeProductId === 'prod_pro_monthly' || subscription.stripeProductId === 'prod_pro_annual' ? 'Pro' : 
+         subscription.stripeProductId.includes('business') || subscription.stripeProductId === 'prod_business_monthly' || subscription.stripeProductId === 'prod_business_annual' ? 'Business' : 'Básica')
+      : 'Básica';
+
+    if (activeEmployeesCount >= limit) {
+      alert(`Has alcanzado el límite de ${limit} empleados activos para tu Plan ${planName}. Por favor, mejora tu suscripción en Configuración para añadir más.`);
+      return;
+    }
+
     setEditingEmployee(null);
     setName('');
     setEmail('');
@@ -484,6 +505,17 @@ export default function EmployeesClient({
       emp.departmentName.toLowerCase().includes(search.toLowerCase())
   );
 
+  const activeEmployeesCount = employees.filter((e) => e.role === Role.EMPLOYEE && e.isActive).length;
+  const limit = subscription.stripeProductId
+    ? (subscription.stripeProductId.includes('pro') || subscription.stripeProductId === 'prod_pro_monthly' || subscription.stripeProductId === 'prod_pro_annual' ? 50 : 
+       subscription.stripeProductId.includes('business') || subscription.stripeProductId === 'prod_business_monthly' || subscription.stripeProductId === 'prod_business_annual' ? Infinity : 10)
+    : 10;
+  const planName = subscription.stripeProductId
+    ? (subscription.stripeProductId.includes('pro') || subscription.stripeProductId === 'prod_pro_monthly' || subscription.stripeProductId === 'prod_pro_annual' ? 'Pro' : 
+       subscription.stripeProductId.includes('business') || subscription.stripeProductId === 'prod_business_monthly' || subscription.stripeProductId === 'prod_business_annual' ? 'Business' : 'Básica')
+    : 'Básica';
+  const limitReached = activeEmployeesCount >= limit;
+
   return (
     <>
       {/* CABECERA */}
@@ -497,6 +529,48 @@ export default function EmployeesClient({
             <Plus size={18} />
             Nuevo empleado
           </button>
+        )}
+      </div>
+
+      {/* BANNER DE LÍMITE DE EMPLEADOS */}
+      <div 
+        className="premium-card" 
+        style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          padding: '12px 20px', 
+          backgroundColor: limitReached ? 'rgba(239, 68, 68, 0.06)' : 'rgba(34, 197, 94, 0.06)',
+          borderLeft: limitReached ? '4px solid var(--danger)' : '4px solid var(--success)',
+          marginBottom: '24px',
+          borderRadius: '8px',
+          flexWrap: 'wrap',
+          gap: '12px',
+          border: '1px solid ' + (limitReached ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)')
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '18px' }}>
+            {limitReached ? '⚠️' : 'ℹ️'}
+          </span>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
+            Límite de empleados: <strong>{activeEmployeesCount}</strong> de <strong>{limit === Infinity ? 'ilimitados' : limit}</strong> activos en tu <strong>Plan {planName}</strong>.
+            {limitReached && ' Has alcanzado el límite de empleados permitido por tu plan.'}
+          </span>
+        </div>
+        {limitReached && (
+          <a 
+            href="/fichaje/dashboard/config#planes"
+            className="btn btn-primary"
+            style={{ 
+              fontSize: '13px', 
+              padding: '6px 12px', 
+              textDecoration: 'none',
+              background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)' 
+            }}
+          >
+            Mejorar Plan
+          </a>
         )}
       </div>
 

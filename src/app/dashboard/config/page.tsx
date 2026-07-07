@@ -5,7 +5,7 @@ import { getHolidays } from '@/app/actions/holidays';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import ConfigClient from './ConfigClient';
-import { stripe } from '@/lib/stripe';
+import { stripe, PLANS } from '@/lib/stripe';
 
 export default async function ConfigPage() {
   const user = await getCurrentUser();
@@ -18,39 +18,60 @@ export default async function ConfigPage() {
   const departments = await getDepartments();
   const holidays = await getHolidays();
 
-  // Valores por defecto
-  let monthlyPriceLabel = '29€';
-  let annualPriceLabel = '290€';
-
-  try {
-    // Obtener precio mensual
-    const monthlyPrices = await stripe.prices.list({
-      product: 'prod_Un8zZdgvmqcuay',
-      active: true,
-      limit: 1,
-    });
-    if (monthlyPrices.data && monthlyPrices.data.length > 0) {
-      const price = monthlyPrices.data[0];
-      const amount = (price.unit_amount || 0) / 100;
-      const currency = price.currency === 'eur' ? '€' : price.currency.toUpperCase();
-      monthlyPriceLabel = `${amount}${currency}`;
+  // Función auxiliar para recuperar precios de Stripe con fallback
+  async function getProductPriceLabel(productId: string, fallback: string): Promise<string> {
+    if (
+      !productId ||
+      productId === 'prod_pro_monthly' ||
+      productId === 'prod_pro_annual' ||
+      productId === 'prod_business_monthly' ||
+      productId === 'prod_business_annual'
+    ) {
+      return fallback;
     }
-
-    // Obtener precio anual
-    const annualPrices = await stripe.prices.list({
-      product: 'prod_Un91TCtSLN7pzx',
-      active: true,
-      limit: 1,
-    });
-    if (annualPrices.data && annualPrices.data.length > 0) {
-      const price = annualPrices.data[0];
-      const amount = (price.unit_amount || 0) / 100;
-      const currency = price.currency === 'eur' ? '€' : price.currency.toUpperCase();
-      annualPriceLabel = `${amount}${currency}`;
+    try {
+      const pricesList = await stripe.prices.list({
+        product: productId,
+        active: true,
+        limit: 1,
+      });
+      if (pricesList.data && pricesList.data.length > 0) {
+        const price = pricesList.data[0];
+        const amount = (price.unit_amount || 0) / 100;
+        const currency = price.currency === 'eur' ? '€' : price.currency.toUpperCase();
+        return `${amount}${currency}`;
+      }
+    } catch (err) {
+      console.warn(`No se pudo obtener precio para producto ${productId}:`, err);
     }
-  } catch (err) {
-    console.error('Error al obtener precios de Stripe:', err);
+    return fallback;
   }
+
+  // Cargar todos los precios en paralelo con sus respectivos fallbacks
+  const [
+    basicMonthlyPrice,
+    basicAnnualPrice,
+    proMonthlyPrice,
+    proAnnualPrice,
+    businessMonthlyPrice,
+    businessAnnualPrice
+  ] = await Promise.all([
+    getProductPriceLabel(PLANS.BASIC.monthlyProductId, '29€'),
+    getProductPriceLabel(PLANS.BASIC.annualProductId, '290€'),
+    getProductPriceLabel(PLANS.PRO.monthlyProductId, '59€'),
+    getProductPriceLabel(PLANS.PRO.annualProductId, '590€'),
+    getProductPriceLabel(PLANS.BUSINESS.monthlyProductId, '99€'),
+    getProductPriceLabel(PLANS.BUSINESS.annualProductId, '990€')
+  ]);
+
+  const pricesMap = {
+    basic_monthly: basicMonthlyPrice,
+    basic_annual: basicAnnualPrice,
+    pro_monthly: proMonthlyPrice,
+    pro_annual: proAnnualPrice,
+    business_monthly: businessMonthlyPrice,
+    business_annual: businessAnnualPrice
+  };
 
   return (
     <ConfigClient
@@ -73,6 +94,7 @@ export default async function ConfigPage() {
         trialEndsAt: user.company.trialEndsAt.toISOString(),
         stripeCustomerId: user.company.stripeCustomerId || '',
         stripeSubscriptionId: user.company.stripeSubscriptionId || '',
+        stripeProductId: user.company.stripeProductId || null,
       }}
       company={{
         name: user.company.name,
@@ -88,8 +110,9 @@ export default async function ConfigPage() {
       }}
       companyId={user.companyId}
       companyEmail={user.email}
-      monthlyPrice={monthlyPriceLabel}
-      annualPrice={annualPriceLabel}
+      monthlyPrice={pricesMap.basic_monthly}
+      annualPrice={pricesMap.basic_annual}
+      prices={pricesMap}
     />
   );
 }

@@ -5,7 +5,7 @@ import { getCurrentUser, generateOTP } from '@/lib/auth';
 import { Role, ContractType } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { stripe } from '@/lib/stripe';
+import { stripe, getPlanLimit } from '@/lib/stripe';
 
 // Middleware interno para verificar si el usuario es Administrador
 async function checkAdmin() {
@@ -68,6 +68,36 @@ export async function saveEmployee(data: {
     weeklySchedule: data.weeklySchedule !== undefined ? data.weeklySchedule : null,
     allowOutsideSchedule: data.allowOutsideSchedule !== undefined ? data.allowOutsideSchedule : false,
   };
+
+  // Verificar el límite de empleados activos para el plan contratado
+  const isAddingActiveEmployee =
+    (!data.id && data.isActive && data.role === Role.EMPLOYEE) ||
+    (data.id && data.isActive && data.role === Role.EMPLOYEE &&
+      await prisma.user.findFirst({
+        where: { id: data.id, companyId: admin.companyId },
+      }).then(existing => !existing || !existing.isActive || existing.role !== Role.EMPLOYEE)
+    );
+
+  if (isAddingActiveEmployee) {
+    const company = await prisma.company.findUnique({
+      where: { id: admin.companyId },
+    });
+
+    if (!company) {
+      throw new Error('Empresa no encontrada.');
+    }
+
+    const limit = getPlanLimit(company.stripeProductId);
+    const activeEmployeesCount = await prisma.user.count({
+      where: { companyId: admin.companyId, isActive: true, role: Role.EMPLOYEE },
+    });
+
+    if (activeEmployeesCount >= limit) {
+      throw new Error(
+        `Límite de empleados alcanzado. Tu plan actual permite hasta ${limit} empleados activos con el rol de Empleado. Por favor, actualiza tu suscripción en Configuración para añadir más.`
+      );
+    }
+  }
 
   if (data.id) {
     // Actualizar

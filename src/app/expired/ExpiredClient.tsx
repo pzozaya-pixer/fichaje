@@ -21,7 +21,7 @@ export default function ExpiredClient({ company, isAdmin }: ExpiredClientProps) 
   const handleSubscribe = async (plan: 'monthly' | 'annual') => {
     setLoading(true);
     try {
-      await subscribeAction(company.id, company.email, plan);
+      await subscribeAction(company.id, company.email, 'basic', plan);
     } catch (err: any) {
       alert(err.message || 'Error al iniciar suscripción de Stripe.');
     } finally {
