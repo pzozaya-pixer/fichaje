@@ -46,6 +46,15 @@ export default async function ConfigPage() {
         const amount = (priceObj.unit_amount || 0) / 100;
         const currency = priceObj.currency === 'eur' ? '€' : priceObj.currency.toUpperCase();
         return `${amount}${currency}`;
+      } else if (period === 'annual') {
+        // Si no hay precio anual en Stripe, pero sí mensual, calculamos dinámicamente con 2 meses de descuento (importe mensual * 10)
+        const monthlyObj = pricesList.data.find((p) => p.recurring?.interval === 'month');
+        if (monthlyObj) {
+          const monthlyAmount = (monthlyObj.unit_amount || 0) / 100;
+          const calculatedAnnual = monthlyAmount * 10;
+          const currency = monthlyObj.currency === 'eur' ? '€' : monthlyObj.currency.toUpperCase();
+          return `${calculatedAnnual}${currency}`;
+        }
       }
     } catch (err) {
       console.warn(`No se pudo obtener precio para producto ${productId}:`, err);
