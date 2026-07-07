@@ -87,7 +87,7 @@ export async function saveEmployee(data: {
       throw new Error('Empresa no encontrada.');
     }
 
-    const limit = getPlanLimit(company.stripeProductId);
+    const limit = getPlanLimit(company.stripeProductId, company.subscriptionQuantity);
     const activeEmployeesCount = await prisma.user.count({
       where: { companyId: admin.companyId, isActive: true, role: Role.EMPLOYEE },
     });

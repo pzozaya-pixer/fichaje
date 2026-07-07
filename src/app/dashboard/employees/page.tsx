@@ -39,6 +39,7 @@ export default async function EmployeesPage() {
       subscription={{
         stripeProductId: user?.company.stripeProductId || null,
         status: user?.company.subscriptionStatus || 'trialing',
+        subscriptionQuantity: user?.company.subscriptionQuantity || null,
         trialEndsAt: user?.company.trialEndsAt ? user.company.trialEndsAt.toISOString() : '',
       }}
     />

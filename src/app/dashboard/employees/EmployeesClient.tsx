@@ -30,6 +30,7 @@ interface EmployeesClientProps {
   subscription: {
     stripeProductId: string | null;
     status: string;
+    subscriptionQuantity: number | null;
     trialEndsAt: string;
   };
 }
@@ -219,20 +220,35 @@ export default function EmployeesClient({
     }));
   };
 
+  // Helper local para calcular el límite de empleados
+  const getPlanLimitClient = (productId: string | null, subscriptionQuantity: number | null) => {
+    if (!productId) return 10;
+    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 10;
+    if (productId.includes('pro') || productId === 'prod_UqIRZsZjb7aYTG') {
+      return subscriptionQuantity ? Math.min(subscriptionQuantity, 50) : 10;
+    }
+    if (productId.includes('business') || productId === 'prod_UqIpPQX0ny7oOD') {
+      return subscriptionQuantity || Infinity;
+    }
+    return 10;
+  };
+
+  const getPlanNameClient = (productId: string | null) => {
+    if (!productId) return 'Básica';
+    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 'Básica';
+    if (productId.includes('pro') || productId === 'prod_UqIRZsZjb7aYTG') return 'Pro';
+    if (productId.includes('business') || productId === 'prod_UqIpPQX0ny7oOD') return 'Business';
+    return 'Básica';
+  };
+
   // Abrir modal para crear
   const openCreateModal = () => {
     const activeEmployeesCount = employees.filter((e) => e.role === Role.EMPLOYEE && e.isActive).length;
-    const limit = subscription.stripeProductId
-      ? (subscription.stripeProductId.includes('pro') || subscription.stripeProductId === 'prod_pro_monthly' || subscription.stripeProductId === 'prod_pro_annual' ? 50 : 
-         subscription.stripeProductId.includes('business') || subscription.stripeProductId === 'prod_business_monthly' || subscription.stripeProductId === 'prod_business_annual' ? Infinity : 10)
-      : 10;
-    const planName = subscription.stripeProductId
-      ? (subscription.stripeProductId.includes('pro') || subscription.stripeProductId === 'prod_pro_monthly' || subscription.stripeProductId === 'prod_pro_annual' ? 'Pro' : 
-         subscription.stripeProductId.includes('business') || subscription.stripeProductId === 'prod_business_monthly' || subscription.stripeProductId === 'prod_business_annual' ? 'Business' : 'Básica')
-      : 'Básica';
+    const limit = getPlanLimitClient(subscription.stripeProductId, subscription.subscriptionQuantity);
+    const planName = getPlanNameClient(subscription.stripeProductId);
 
     if (activeEmployeesCount >= limit) {
-      alert(`Has alcanzado el límite de ${limit} empleados activos para tu Plan ${planName}. Por favor, mejora tu suscripción en Configuración para añadir más.`);
+      alert(`Has alcanzado el límite de ${limit === Infinity ? 'ilimitados' : limit} empleados activos para tu Plan ${planName}. Por favor, mejora tu suscripción en Configuración para añadir más.`);
       return;
     }
 
@@ -506,14 +522,8 @@ export default function EmployeesClient({
   );
 
   const activeEmployeesCount = employees.filter((e) => e.role === Role.EMPLOYEE && e.isActive).length;
-  const limit = subscription.stripeProductId
-    ? (subscription.stripeProductId.includes('pro') || subscription.stripeProductId === 'prod_pro_monthly' || subscription.stripeProductId === 'prod_pro_annual' ? 50 : 
-       subscription.stripeProductId.includes('business') || subscription.stripeProductId === 'prod_business_monthly' || subscription.stripeProductId === 'prod_business_annual' ? Infinity : 10)
-    : 10;
-  const planName = subscription.stripeProductId
-    ? (subscription.stripeProductId.includes('pro') || subscription.stripeProductId === 'prod_pro_monthly' || subscription.stripeProductId === 'prod_pro_annual' ? 'Pro' : 
-       subscription.stripeProductId.includes('business') || subscription.stripeProductId === 'prod_business_monthly' || subscription.stripeProductId === 'prod_business_annual' ? 'Business' : 'Básica')
-    : 'Básica';
+  const limit = getPlanLimitClient(subscription.stripeProductId, subscription.subscriptionQuantity);
+  const planName = getPlanNameClient(subscription.stripeProductId);
   const limitReached = activeEmployeesCount >= limit;
 
   return (

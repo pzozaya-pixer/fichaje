@@ -1,5 +1,6 @@
 import React from 'react';
 export const dynamic = 'force-dynamic';
+import { prisma } from '@/lib/db';
 import { getWorkCenters, getDepartments } from '@/app/actions/admin';
 import { getHolidays } from '@/app/actions/holidays';
 import { getCurrentUser } from '@/lib/auth';
@@ -73,6 +74,11 @@ export default async function ConfigPage() {
     business_annual: businessAnnualPrice
   };
 
+  // Contar empleados activos para determinar el valor inicial de los selectores de cantidad
+  const activeEmployeesCount = await prisma.user.count({
+    where: { companyId: user.companyId, isActive: true, role: 'EMPLOYEE' },
+  });
+
   return (
     <ConfigClient
       initialWorkCenters={workCenters.map((w) => ({
@@ -95,6 +101,7 @@ export default async function ConfigPage() {
         stripeCustomerId: user.company.stripeCustomerId || '',
         stripeSubscriptionId: user.company.stripeSubscriptionId || '',
         stripeProductId: user.company.stripeProductId || null,
+        subscriptionQuantity: user.company.subscriptionQuantity || null,
       }}
       company={{
         name: user.company.name,
@@ -113,6 +120,7 @@ export default async function ConfigPage() {
       monthlyPrice={pricesMap.basic_monthly}
       annualPrice={pricesMap.basic_annual}
       prices={pricesMap}
+      activeEmployeesCount={activeEmployeesCount}
     />
   );
 }

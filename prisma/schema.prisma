@@ -43,6 +43,7 @@ model Company {
   stripeSubscriptionId String?           @unique
   subscriptionStatus   String            @default("trialing") // trialing, active, past_due, canceled
   stripeProductId      String?           // Identificador del producto contratado (para determinar el plan y sus límites)
+  subscriptionQuantity Int?              // Cantidad de licencias/empleados contratados en Stripe
   trialEndsAt          DateTime      
   
   // Relaciones

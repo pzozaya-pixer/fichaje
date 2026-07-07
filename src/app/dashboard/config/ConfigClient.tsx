@@ -65,6 +65,7 @@ interface ConfigClientProps {
     stripeCustomerId: string;
     stripeSubscriptionId?: string;
     stripeProductId?: string | null;
+    subscriptionQuantity?: number | null;
   };
   company: {
     name: string;
@@ -90,6 +91,7 @@ interface ConfigClientProps {
     business_monthly: string;
     business_annual: string;
   };
+  activeEmployeesCount: number;
 }
 
 export default function ConfigClient({
@@ -103,6 +105,7 @@ export default function ConfigClient({
   monthlyPrice,
   annualPrice,
   prices,
+  activeEmployeesCount,
 }: ConfigClientProps) {
   const searchParams = useSearchParams();
   
@@ -251,12 +254,42 @@ export default function ConfigClient({
   // Toggle de período de facturación: 'monthly' o 'annual'
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
 
+  // Estados para cantidad de empleados contratados
+  const [proQty, setProQty] = useState(
+    subscription.stripeProductId === 'prod_UqIRZsZjb7aYTG' && subscription.subscriptionQuantity
+      ? subscription.subscriptionQuantity
+      : Math.max(11, Math.min(50, activeEmployeesCount || 11))
+  );
+
+  const [businessQty, setBusinessQty] = useState(
+    subscription.stripeProductId === 'prod_UqIpPQX0ny7oOD' && subscription.subscriptionQuantity
+      ? subscription.subscriptionQuantity
+      : Math.max(50, activeEmployeesCount || 50)
+  );
+
+  // Helpers para calcular totales dinámicos
+  const parsePrice = (priceStr: string): number => {
+    const match = priceStr.replace(/[^0-9.]/g, '');
+    return parseFloat(match) || 0;
+  };
+
+  const getCurrencySymbol = (priceStr: string): string => {
+    return priceStr.includes('€') ? '€' : priceStr.replace(/[0-9.]/g, '').trim();
+  };
+
+  const calculateTotal = (unitPriceStr: string, qty: number): string => {
+    const unitPrice = parsePrice(unitPriceStr);
+    const total = unitPrice * qty;
+    const symbol = getCurrencySymbol(unitPriceStr);
+    return symbol === '€' ? `${total.toFixed(2)}€` : `${symbol}${total.toFixed(2)}`;
+  };
+
   // Helpers de cliente para mapeo de planes
   function getPlanNameClient(productId: string | null): string {
     if (!productId) return 'Básica';
     if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 'Básica';
-    if (productId.includes('pro') || productId === 'prod_pro_monthly' || productId === 'prod_pro_annual') return 'Pro';
-    if (productId.includes('business') || productId === 'prod_business_monthly' || productId === 'prod_business_annual') return 'Business';
+    if (productId === 'prod_UqIRZsZjb7aYTG') return 'Pro';
+    if (productId === 'prod_UqIpPQX0ny7oOD') return 'Business';
     return 'Básica';
   }
 
@@ -267,10 +300,10 @@ export default function ConfigClient({
       return !prodId || prodId === 'prod_Un8zZdgvmqcuay' || prodId === 'prod_Un91TCtSLN7pzx';
     }
     if (planName === 'pro') {
-      return prodId === 'prod_pro_monthly' || prodId === 'prod_pro_annual' || (prodId && prodId.includes('pro'));
+      return prodId === 'prod_UqIRZsZjb7aYTG';
     }
     if (planName === 'business') {
-      return prodId === 'prod_business_monthly' || prodId === 'prod_business_annual' || (prodId && prodId.includes('business'));
+      return prodId === 'prod_UqIpPQX0ny7oOD';
     }
     return false;
   };
@@ -665,10 +698,10 @@ export default function ConfigClient({
   };
 
   // --- ACCIONES STRIPE ---
-  const handleSubscribe = async (tier: 'basic' | 'pro' | 'business', period: 'monthly' | 'annual') => {
+  const handleSubscribe = async (tier: 'basic' | 'pro' | 'business', period: 'monthly' | 'annual', quantity: number = 1) => {
     setStripeLoading(true);
     try {
-      await subscribeAction(companyId, companyEmail, tier, period);
+      await subscribeAction(companyId, companyEmail, tier, period, quantity);
     } catch (err: any) {
       alert(err.message || 'Error al iniciar suscripción de Stripe.');
     } finally {
@@ -945,7 +978,7 @@ export default function ConfigClient({
                   </ul>
                   <button
                     disabled={stripeLoading}
-                    onClick={isPlanActive('basic') ? undefined : (hasActiveSubscription ? handleOpenBilling : () => handleSubscribe('basic', billingPeriod))}
+                    onClick={isPlanActive('basic') ? undefined : (hasActiveSubscription ? handleOpenBilling : () => handleSubscribe('basic', billingPeriod, 1))}
                     className="btn btn-primary"
                     style={{ 
                       marginTop: 'auto', 
@@ -1010,12 +1043,48 @@ export default function ConfigClient({
                     <h4 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Plan Pro</h4>
                     <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>Para empresas en crecimiento.</p>
                   </div>
-                  <p style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-title)', margin: 0 }}>
+                  <p style={{ fontSize: '28px', fontWeight: 800, fontFamily: 'var(--font-title)', margin: 0 }}>
                     {billingPeriod === 'monthly' ? prices.pro_monthly : prices.pro_annual}
                     <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>
+                      {billingPeriod === 'monthly' ? ' / empleado / mes' : ' / empleado / año'}
+                    </span>
+                  </p>
+
+                  {/* Selector de cantidad de empleados */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Empleados a contratar ({proQty}):
+                    </label>
+                    <input
+                      type="number"
+                      min={11}
+                      max={50}
+                      value={proQty}
+                      onChange={(e) => setProQty(Math.max(11, Math.min(50, parseInt(e.target.value) || 11)))}
+                      disabled={hasActiveSubscription}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        fontSize: '14px',
+                        width: '100%',
+                        backgroundColor: hasActiveSubscription ? 'var(--bg-secondary)' : '#fff',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                      Permite gestionar entre 11 y 50 empleados.
+                    </p>
+                  </div>
+
+                  {/* Total de Pro dinámico */}
+                  <p style={{ fontSize: '20px', fontWeight: 700, margin: '8px 0 0 0', color: 'var(--primary)' }}>
+                    Total: {calculateTotal(billingPeriod === 'monthly' ? prices.pro_monthly : prices.pro_annual, proQty)} 
+                    <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--text-secondary)' }}>
                       {billingPeriod === 'monthly' ? ' / mes' : ' / año'}
                     </span>
                   </p>
+
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <li><strong>Hasta 50 empleados</strong> activos</li>
                     <li>Todas las funciones del Plan Básica</li>
@@ -1025,7 +1094,7 @@ export default function ConfigClient({
                   </ul>
                   <button
                     disabled={stripeLoading}
-                    onClick={isPlanActive('pro') ? undefined : (hasActiveSubscription ? handleOpenBilling : () => handleSubscribe('pro', billingPeriod))}
+                    onClick={isPlanActive('pro') ? undefined : (hasActiveSubscription ? handleOpenBilling : () => handleSubscribe('pro', billingPeriod, proQty))}
                     className="btn btn-primary"
                     style={{ 
                       marginTop: 'auto', 
@@ -1075,14 +1144,49 @@ export default function ConfigClient({
                     <h4 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Plan Business</h4>
                     <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>Para grandes organizaciones.</p>
                   </div>
-                  <p style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-title)', margin: 0 }}>
+                  <p style={{ fontSize: '28px', fontWeight: 800, fontFamily: 'var(--font-title)', margin: 0 }}>
                     {billingPeriod === 'monthly' ? prices.business_monthly : prices.business_annual}
                     <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-secondary)' }}>
+                      {billingPeriod === 'monthly' ? ' / empleado / mes' : ' / empleado / año'}
+                    </span>
+                  </p>
+
+                  {/* Selector de cantidad de empleados */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Empleados a contratar ({businessQty}):
+                    </label>
+                    <input
+                      type="number"
+                      min={50}
+                      value={businessQty}
+                      onChange={(e) => setBusinessQty(Math.max(50, parseInt(e.target.value) || 50))}
+                      disabled={hasActiveSubscription}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        fontSize: '14px',
+                        width: '100%',
+                        backgroundColor: hasActiveSubscription ? 'var(--bg-secondary)' : '#fff',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                      Para organizaciones de 50 o más empleados.
+                    </p>
+                  </div>
+
+                  {/* Total de Business dinámico */}
+                  <p style={{ fontSize: '20px', fontWeight: 700, margin: '8px 0 0 0', color: 'var(--primary)' }}>
+                    Total: {calculateTotal(billingPeriod === 'monthly' ? prices.business_monthly : prices.business_annual, businessQty)} 
+                    <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--text-secondary)' }}>
                       {billingPeriod === 'monthly' ? ' / mes' : ' / año'}
                     </span>
                   </p>
+
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <li><strong>Empleados ilimitados</strong></li>
+                    <li><strong>De 50 empleados en adelante</strong></li>
                     <li>Todas las funciones del Plan Pro</li>
                     <li>Exportación de backups automatizados</li>
                     <li>Asignación de múltiples administradores</li>
@@ -1090,7 +1194,7 @@ export default function ConfigClient({
                   </ul>
                   <button
                     disabled={stripeLoading}
-                    onClick={isPlanActive('business') ? undefined : (hasActiveSubscription ? handleOpenBilling : () => handleSubscribe('business', billingPeriod))}
+                    onClick={isPlanActive('business') ? undefined : (hasActiveSubscription ? handleOpenBilling : () => handleSubscribe('business', billingPeriod, businessQty))}
                     className="btn btn-primary"
                     style={{ 
                       marginTop: 'auto', 

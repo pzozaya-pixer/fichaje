@@ -17,25 +17,25 @@ export const PLANS = {
   PRO: {
     name: 'Pro',
     limit: 50,
-    monthlyProductId: process.env.STRIPE_PRO_MONTHLY_PRODUCT_ID || 'prod_pro_monthly',
-    annualProductId: process.env.STRIPE_PRO_ANNUAL_PRODUCT_ID || 'prod_pro_annual',
+    monthlyProductId: 'prod_UqIRZsZjb7aYTG',
+    annualProductId: 'prod_UqIRZsZjb7aYTG',
   },
   BUSINESS: {
     name: 'Business',
     limit: Infinity,
-    monthlyProductId: process.env.STRIPE_BUSINESS_MONTHLY_PRODUCT_ID || 'prod_business_monthly',
-    annualProductId: process.env.STRIPE_BUSINESS_ANNUAL_PRODUCT_ID || 'prod_business_annual',
+    monthlyProductId: 'prod_UqIpPQX0ny7oOD',
+    annualProductId: 'prod_UqIpPQX0ny7oOD',
   }
 };
 
 // Helper para obtener el límite de empleados de un producto
-export function getPlanLimit(productId: string | null): number {
+export function getPlanLimit(productId: string | null, subscriptionQuantity: number | null = null): number {
   if (!productId) return PLANS.BASIC.limit;
   if (productId === PLANS.PRO.monthlyProductId || productId === PLANS.PRO.annualProductId) {
-    return PLANS.PRO.limit;
+    return subscriptionQuantity ? Math.min(subscriptionQuantity, PLANS.PRO.limit) : PLANS.BASIC.limit;
   }
   if (productId === PLANS.BUSINESS.monthlyProductId || productId === PLANS.BUSINESS.annualProductId) {
-    return PLANS.BUSINESS.limit;
+    return subscriptionQuantity || PLANS.BUSINESS.limit;
   }
   if (productId === PLANS.BASIC.monthlyProductId || productId === PLANS.BASIC.annualProductId) {
     return PLANS.BASIC.limit;
@@ -63,7 +63,8 @@ export async function createCheckoutSession(
   companyId: string,
   email: string,
   tier: 'basic' | 'pro' | 'business',
-  period: 'monthly' | 'annual' = 'monthly'
+  period: 'monthly' | 'annual' = 'monthly',
+  quantity: number = 1
 ) {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -83,18 +84,21 @@ export async function createCheckoutSession(
     productId = period === 'annual' ? PLANS.BUSINESS.annualProductId : PLANS.BUSINESS.monthlyProductId;
   }
 
-  // Obtener el precio activo del producto en Stripe para usar el precio configurado en tu dashboard
+  // Obtener todos los precios activos del producto en Stripe
   const prices = await stripe.prices.list({
     product: productId,
     active: true,
-    limit: 1,
+    type: 'recurring',
   });
 
-  if (!prices.data || prices.data.length === 0) {
-    throw new Error(`No se encontró un precio activo en Stripe para el producto ${productId}`);
+  const targetInterval = period === 'annual' ? 'year' : 'month';
+  const priceObj = prices.data.find((p) => p.recurring?.interval === targetInterval);
+
+  if (!priceObj) {
+    throw new Error(`No se encontró un precio activo en Stripe para el producto ${productId} con intervalo ${targetInterval}`);
   }
 
-  const priceId = prices.data[0].id;
+  const priceId = priceObj.id;
 
   // Determinar si aplica el trial de 15 días
   const now = new Date();
@@ -123,7 +127,7 @@ export async function createCheckoutSession(
     line_items: [
       {
         price: priceId,
-        quantity: 1,
+        quantity: quantity,
       },
     ],
     subscription_data: isTrialActive
@@ -189,6 +193,8 @@ export async function handleStripeWebhook(signature: string, rawBody: string) {
         ? priceProduct
         : (priceProduct && 'id' in priceProduct ? priceProduct.id : null);
 
+      const subscriptionQuantity = subscription.items.data[0]?.quantity || 1;
+
       // Buscar empresa por stripeCustomerId
       const company = await prisma.company.findFirst({
         where: { stripeCustomerId },
@@ -201,6 +207,7 @@ export async function handleStripeWebhook(signature: string, rawBody: string) {
             stripeSubscriptionId: subscription.id,
             subscriptionStatus: status,
             stripeProductId: stripeProductId || company.stripeProductId,
+            subscriptionQuantity: subscriptionQuantity,
             trialEndsAt: subscription.trial_end ? trialEndsAt : company.trialEndsAt,
           },
         });
@@ -222,6 +229,7 @@ export async function handleStripeWebhook(signature: string, rawBody: string) {
             subscriptionStatus: 'canceled',
             stripeSubscriptionId: null,
             stripeProductId: null,
+            subscriptionQuantity: null,
           },
         });
       }
