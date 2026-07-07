@@ -64,10 +64,10 @@ export default async function ConfigPage() {
   ] = await Promise.all([
     getProductPriceLabel(PLANS.BASIC.monthlyProductId, 'monthly', '29€'),
     getProductPriceLabel(PLANS.BASIC.annualProductId, 'annual', '290€'),
-    getProductPriceLabel(PLANS.PRO.monthlyProductId, 'monthly', '4.90€'),
-    getProductPriceLabel(PLANS.PRO.annualProductId, 'annual', '49€'),
-    getProductPriceLabel(PLANS.BUSINESS.monthlyProductId, 'monthly', '9.90€'),
-    getProductPriceLabel(PLANS.BUSINESS.annualProductId, 'annual', '99€')
+    getProductPriceLabel(PLANS.PRO.monthlyProductId, 'monthly', '2.50€'),
+    getProductPriceLabel(PLANS.PRO.annualProductId, 'annual', '25€'),
+    getProductPriceLabel(PLANS.BUSINESS.monthlyProductId, 'monthly', '5.00€'),
+    getProductPriceLabel(PLANS.BUSINESS.annualProductId, 'annual', '50€')
   ]);
 
   const pricesMap = {

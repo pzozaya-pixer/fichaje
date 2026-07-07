@@ -269,7 +269,8 @@ export default function ConfigClient({
 
   // Helpers para calcular totales dinámicos
   const parsePrice = (priceStr: string): number => {
-    const match = priceStr.replace(/[^0-9.]/g, '');
+    const normalized = priceStr.replace(',', '.');
+    const match = normalized.replace(/[^0-9.]/g, '');
     return parseFloat(match) || 0;
   };
 
