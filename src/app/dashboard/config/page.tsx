@@ -20,7 +20,11 @@ export default async function ConfigPage() {
   const holidays = await getHolidays();
 
   // Función auxiliar para recuperar precios de Stripe con fallback
-  async function getProductPriceLabel(productId: string, fallback: string): Promise<string> {
+  async function getProductPriceLabel(
+    productId: string,
+    period: 'monthly' | 'annual',
+    fallback: string
+  ): Promise<string> {
     if (
       !productId ||
       productId === 'prod_pro_monthly' ||
@@ -34,12 +38,13 @@ export default async function ConfigPage() {
       const pricesList = await stripe.prices.list({
         product: productId,
         active: true,
-        limit: 1,
+        type: 'recurring',
       });
-      if (pricesList.data && pricesList.data.length > 0) {
-        const price = pricesList.data[0];
-        const amount = (price.unit_amount || 0) / 100;
-        const currency = price.currency === 'eur' ? '€' : price.currency.toUpperCase();
+      const targetInterval = period === 'annual' ? 'year' : 'month';
+      const priceObj = pricesList.data.find((p) => p.recurring?.interval === targetInterval);
+      if (priceObj) {
+        const amount = (priceObj.unit_amount || 0) / 100;
+        const currency = priceObj.currency === 'eur' ? '€' : priceObj.currency.toUpperCase();
         return `${amount}${currency}`;
       }
     } catch (err) {
@@ -57,12 +62,12 @@ export default async function ConfigPage() {
     businessMonthlyPrice,
     businessAnnualPrice
   ] = await Promise.all([
-    getProductPriceLabel(PLANS.BASIC.monthlyProductId, '29€'),
-    getProductPriceLabel(PLANS.BASIC.annualProductId, '290€'),
-    getProductPriceLabel(PLANS.PRO.monthlyProductId, '59€'),
-    getProductPriceLabel(PLANS.PRO.annualProductId, '590€'),
-    getProductPriceLabel(PLANS.BUSINESS.monthlyProductId, '99€'),
-    getProductPriceLabel(PLANS.BUSINESS.annualProductId, '990€')
+    getProductPriceLabel(PLANS.BASIC.monthlyProductId, 'monthly', '29€'),
+    getProductPriceLabel(PLANS.BASIC.annualProductId, 'annual', '290€'),
+    getProductPriceLabel(PLANS.PRO.monthlyProductId, 'monthly', '4.90€'),
+    getProductPriceLabel(PLANS.PRO.annualProductId, 'annual', '49€'),
+    getProductPriceLabel(PLANS.BUSINESS.monthlyProductId, 'monthly', '9.90€'),
+    getProductPriceLabel(PLANS.BUSINESS.annualProductId, 'annual', '99€')
   ]);
 
   const pricesMap = {
