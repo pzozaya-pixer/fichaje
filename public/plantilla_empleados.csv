@@ -1,0 +1,4 @@
+Nombre,Email,Teléfono,Rol,Tipo Contrato,Centro Trabajo,Departamento,Horas Diarias
+Juan Pérez,juan.perez@empresa.com,600111222,EMPLEADO,INDEFINIDO,Oficina Central,Ventas,8.0
+María López,maria.lopez@empresa.com,600333444,EMPLEADO,TEMPORAL,Sede Norte,Desarrollo,8.0
+Carlos García,carlos.garcia@empresa.com,,ADMIN,INDEFINIDO,,Soporte,8.0

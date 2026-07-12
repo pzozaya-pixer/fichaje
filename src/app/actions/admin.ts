@@ -1154,3 +1154,159 @@ export async function restoreBackupAction(backupJson: string, mode: 'complete' |
     return { success: false, message: error.message || 'Error al procesar el archivo de copia de seguridad.' };
   }
 }
+
+export async function importEmployeesAction(employees: Array<{
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  contractType?: string;
+  workCenterName?: string;
+  departmentName?: string;
+  dailyContractedHours?: number;
+}>) {
+  const admin = await checkAdmin();
+
+  // 1. Validar el plan de la empresa y límite de empleados
+  const company = await prisma.company.findUnique({
+    where: { id: admin.companyId },
+  });
+
+  if (!company) {
+    throw new Error('Empresa no encontrada.');
+  }
+
+  const limit = getPlanLimit(company.stripeProductId, company.subscriptionQuantity);
+  const currentActiveEmployeesCount = await prisma.user.count({
+    where: { companyId: admin.companyId, isActive: true, role: Role.EMPLOYEE },
+  });
+
+  // Contar cuántos de los empleados importados van a ser activos con el rol EMPLOYEE
+  let newActiveEmployeesCount = 0;
+  for (const emp of employees) {
+    const roleNormalized = (emp.role || '').toUpperCase().trim();
+    // Por defecto es EMPLOYEE si no se especifica o si coincide con los valores típicos
+    const isEmployee = !roleNormalized || roleNormalized === 'EMPLOYEE' || roleNormalized === 'EMPLEADO' || roleNormalized === 'TRABAJADOR';
+    if (isEmployee) {
+      newActiveEmployeesCount++;
+    }
+  }
+
+  if (currentActiveEmployeesCount + newActiveEmployeesCount > limit) {
+    throw new Error(
+      `Límite de empleados alcanzado. Tu plan actual permite hasta ${limit} empleados activos con el rol de Empleado. Actualmente tienes ${currentActiveEmployeesCount} y estás intentando importar ${newActiveEmployeesCount} adicionales.`
+    );
+  }
+
+  // 2. Obtener departamentos y centros de trabajo de la empresa para relacionarlos
+  const existingDepartments = await prisma.department.findMany({
+    where: { companyId: admin.companyId },
+  });
+  const existingWorkCenters = await prisma.workCenter.findMany({
+    where: { companyId: admin.companyId },
+  });
+
+  // Mapear por nombre (normalizado) para búsqueda rápida
+  const deptMap = new Map(existingDepartments.map(d => [d.name.toLowerCase().trim(), d.id]));
+  const wcMap = new Map(existingWorkCenters.map(w => [w.name.toLowerCase().trim(), w.id]));
+
+  // 3. Validar duplicados en el lote e emails existentes en la base de datos
+  const emailsInBatch = new Set<string>();
+  const emailsToCheck: string[] = [];
+
+  for (const emp of employees) {
+    if (!emp.email) {
+      throw new Error(`Hay empleados en el CSV sin dirección de correo electrónico.`);
+    }
+    const emailNormalized = emp.email.toLowerCase().trim();
+    if (emailsInBatch.has(emailNormalized)) {
+      throw new Error(`El email ${emailNormalized} está duplicado en el archivo CSV.`);
+    }
+    emailsInBatch.add(emailNormalized);
+    emailsToCheck.push(emailNormalized);
+  }
+
+  // Comprobar globalmente si los emails existen
+  const existingUsers = await prisma.user.findMany({
+    where: { email: { in: emailsToCheck } },
+    select: { email: true },
+  });
+
+  if (existingUsers.length > 0) {
+    const existingEmailsList = existingUsers.map(u => u.email).join(', ');
+    throw new Error(`Los siguientes correos electrónicos ya están registrados en el sistema: ${existingEmailsList}`);
+  }
+
+  // 4. Crear empleados en una transacción
+  const result = await prisma.$transaction(async (tx) => {
+    const createdUsers = [];
+
+    for (const emp of employees) {
+      const emailNormalized = emp.email.toLowerCase().trim();
+      const nameTrimmed = emp.name.trim();
+
+      // Mapear Rol
+      let finalRole: Role = Role.EMPLOYEE;
+      const roleStr = (emp.role || '').toUpperCase().trim();
+      if (roleStr === 'ADMIN' || roleStr === 'ADMINISTRADOR') {
+        finalRole = Role.ADMIN;
+      } else if (roleStr === 'CONSULTANT' || roleStr === 'CONSULTOR' || roleStr === 'CONSULTORA') {
+        finalRole = Role.CONSULTANT;
+      }
+
+      // Mapear Tipo Contrato
+      let finalContract: ContractType = ContractType.INDEFINIDO;
+      const contractStr = (emp.contractType || '').toUpperCase().trim();
+      if (contractStr === 'TEMPORAL') {
+        finalContract = ContractType.TEMPORAL;
+      } else if (contractStr === 'PRACTICAS' || contractStr === 'PRÁCTICAS') {
+        finalContract = ContractType.PRACTICAS;
+      } else if (contractStr === 'AUTONOMO' || contractStr === 'AUTÓNOMO') {
+        finalContract = ContractType.AUTONOMO;
+      }
+
+      // Relacionar departamento por nombre (si existe), si no, asociar null
+      let departmentId: string | null = null;
+      if (emp.departmentName) {
+        const key = emp.departmentName.toLowerCase().trim();
+        departmentId = deptMap.get(key) || null;
+      }
+
+      // Relacionar centro de trabajo por nombre (si existe), si no, asociar null
+      let workCenterId: string | null = null;
+      if (emp.workCenterName) {
+        const key = emp.workCenterName.toLowerCase().trim();
+        workCenterId = wcMap.get(key) || null;
+      }
+
+      const dailyHours = emp.dailyContractedHours !== undefined ? Number(emp.dailyContractedHours) : 8.0;
+      const monthlyHours = dailyHours * 20;
+
+      const user = await tx.user.create({
+        data: {
+          email: emailNormalized,
+          name: nameTrimmed,
+          phone: emp.phone?.trim() || null,
+          role: finalRole,
+          contractType: finalContract,
+          isActive: true,
+          companyId: admin.companyId,
+          departmentId,
+          workCenterId,
+          dailyContractedHours: dailyHours,
+          monthlyContractedHours: monthlyHours,
+          weeklySchedule: null as any,
+          allowOutsideSchedule: false,
+        },
+      });
+
+      createdUsers.push(user);
+    }
+
+    return createdUsers;
+  });
+
+  revalidatePath('/dashboard/employees');
+  revalidatePath('/movil');
+  return { success: true, count: result.length };
+}

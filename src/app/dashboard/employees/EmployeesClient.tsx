@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { saveEmployee } from '@/app/actions/admin';
-import { Plus, Search, Edit2, X, Loader2, ShieldCheck, UserCheck } from 'lucide-react';
+import { saveEmployee, importEmployeesAction } from '@/app/actions/admin';
+import { Plus, Search, Edit2, X, Loader2, ShieldCheck, UserCheck, Upload } from 'lucide-react';
 import { Role, ContractType } from '@prisma/client';
 
 interface Employee {
@@ -209,6 +209,124 @@ export default function EmployeesClient({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Estados para importación CSV
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreview, setCsvPreview] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+
+  const handleCsvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvFile(file);
+    setImportError('');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        if (!text) return;
+
+        // Detectar si el delimitador es , o ;
+        const firstLine = text.split('\n')[0] || '';
+        const commaCount = (firstLine.match(/,/g) || []).length;
+        const semicolonCount = (firstLine.match(/;/g) || []).length;
+        const delimiter = semicolonCount > commaCount ? ';' : ',';
+
+        const lines = text.split(/\r?\n/);
+        const headers = (lines[0] || '').split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
+
+        const parsed = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i]?.trim();
+          if (!line) continue;
+
+          // Parsear linea teniendo en cuenta posibles comillas
+          const values: string[] = [];
+          let currentVal = '';
+          let inQuotes = false;
+          for (let c = 0; c < line.length; c++) {
+            const char = line[c];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === delimiter && !inQuotes) {
+              values.push(currentVal.trim().replace(/^"|"$/g, ''));
+              currentVal = '';
+            } else {
+              currentVal += char;
+            }
+          }
+          values.push(currentVal.trim().replace(/^"|"$/g, ''));
+
+          if (values.length === 0 || (values.length === 1 && !values[0])) continue;
+
+          const row: any = {};
+          headers.forEach((header, index) => {
+            const val = values[index] || '';
+            const key = header.toLowerCase();
+
+            if (key === 'nombre' || key === 'name') {
+              row.name = val;
+            } else if (key === 'email' || key === 'correo') {
+              row.email = val;
+            } else if (key === 'teléfono' || key === 'telefono' || key === 'phone' || key === 'tel') {
+              row.phone = val;
+            } else if (key === 'rol' || key === 'role') {
+              row.role = val;
+            } else if (key === 'tipo contrato' || key === 'tipocontrato' || key === 'contracttype' || key === 'contrato') {
+              row.contractType = val;
+            } else if (key === 'centro trabajo' || key === 'centro' || key === 'workcenter' || key === 'workcentername') {
+              row.workCenterName = val;
+            } else if (key === 'departamento' || key === 'department' || key === 'departmentname') {
+              row.departmentName = val;
+            } else if (key === 'horas diarias' || key === 'horas' || key === 'dailyhours' || key === 'hours') {
+              row.dailyContractedHours = parseFloat(val) || 8.0;
+            }
+          });
+
+          parsed.push(row);
+        }
+
+        setCsvPreview(parsed);
+      } catch (err: any) {
+        setImportError('Error al leer el archivo CSV: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImportSubmit = async () => {
+    if (csvPreview.length === 0) {
+      setImportError('No hay empleados válidos para importar.');
+      return;
+    }
+
+    const invalidCount = csvPreview.filter(e => !e.name || !e.email).length;
+    if (invalidCount > 0) {
+      setImportError('Hay filas con Nombre o Email vacíos. Corrige el archivo antes de continuar.');
+      return;
+    }
+
+    setImporting(true);
+    setImportError('');
+
+    try {
+      const res = await importEmployeesAction(csvPreview);
+      if (res.success) {
+        alert(`${res.count} empleados importados con éxito.`);
+        setIsImportModalOpen(false);
+        setCsvFile(null);
+        setCsvPreview([]);
+        window.location.reload();
+      }
+    } catch (err: any) {
+      setImportError(err.message || 'Ocurrió un error inesperado durante la importación.');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleDayScheduleChange = (dayKey: string, field: 'enabled' | 'start' | 'end', value: any) => {
     setWeeklySchedule((prev) => ({
@@ -535,10 +653,16 @@ export default function EmployeesClient({
           <p className="page-subtitle">Gestiona la plantilla de empleados, sus contratos, roles y centros.</p>
         </div>
         {activeSubTab === 'list' && (
-          <button onClick={openCreateModal} className="btn btn-primary">
-            <Plus size={18} />
-            Nuevo empleado
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => setIsImportModalOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Upload size={18} />
+              Importar CSV
+            </button>
+            <button onClick={openCreateModal} className="btn btn-primary">
+              <Plus size={18} />
+              Nuevo empleado
+            </button>
+          </div>
         )}
       </div>
 
@@ -1109,6 +1233,139 @@ export default function EmployeesClient({
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* MODAL IMPORTAR DESDE CSV */}
+      {isImportModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
+          <div className="premium-card" style={{ maxWidth: '640px', width: '100%', backgroundColor: 'white', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '18px', fontFamily: 'var(--font-title)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Upload size={20} className="text-primary" />
+                Importar Empleados desde CSV
+              </h3>
+              <button onClick={() => { setIsImportModalOpen(false); setCsvFile(null); setCsvPreview([]); setImportError(''); }} style={{ color: 'var(--text-secondary)', cursor: 'pointer', background: 'none', border: 'none' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {importError && (
+              <div className="pwa-geo-status out-range" style={{ margin: 0, backgroundColor: 'rgba(239, 68, 68, 0.06)', borderLeft: '4px solid var(--danger)', padding: '10px', borderRadius: '4px', color: 'var(--danger)', fontSize: '13px' }}>
+                <span>{importError}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6', margin: 0 }}>
+                Sube un archivo en formato CSV para dar de alta múltiples empleados a la vez. El archivo debe incluir obligatoriamente las columnas <strong>Nombre</strong> y <strong>Email</strong>.
+              </p>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                <div>
+                  <span style={{ fontSize: '13px', fontWeight: 600, display: 'block' }}>¿No tienes el archivo listo?</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Descarga nuestra plantilla oficial.</span>
+                </div>
+                <a 
+                  href="/fichaje/plantilla_empleados.csv" 
+                  download="plantilla_empleados.csv"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '12px', padding: '6px 12px', textDecoration: 'none' }}
+                >
+                  Descargar Plantilla CSV
+                </a>
+              </div>
+
+              {/* INPUT FILE */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Seleccionar Archivo (.csv):
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCsvChange}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '14px',
+                    width: '100%',
+                    backgroundColor: '#fff'
+                  }}
+                />
+              </div>
+
+              {/* PREVIEW */}
+              {csvPreview.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    Vista previa de la importación ({csvPreview.length} registros):
+                  </span>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                    <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0 }}>
+                          <th style={{ padding: '8px 12px', fontWeight: 600 }}>Nombre</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600 }}>Email</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600 }}>Rol</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600 }}>Contrato</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600 }}>Centro</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvPreview.map((row, idx) => {
+                          const hasMissingData = !row.name || !row.email;
+                          return (
+                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: hasMissingData ? 'rgba(239, 68, 68, 0.03)' : undefined }}>
+                              <td style={{ padding: '8px 12px', color: !row.name ? 'var(--danger)' : undefined }}>
+                                {row.name || '[VACÍO]'}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: !row.email ? 'var(--danger)' : undefined }}>
+                                {row.email || '[VACÍO]'}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>
+                                {row.role || 'EMPLOYEE'}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>
+                                {row.contractType || 'INDEFINIDO'}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>
+                                {row.workCenterName || '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '10px' }}>
+              <button 
+                type="button" 
+                onClick={() => { setIsImportModalOpen(false); setCsvFile(null); setCsvPreview([]); setImportError(''); }} 
+                className="btn btn-secondary"
+                disabled={importing}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button" 
+                onClick={handleImportSubmit} 
+                className="btn btn-primary"
+                disabled={importing || csvPreview.length === 0}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                {importing && <Loader2 className="animate-spin" size={16} />}
+                {importing ? 'Importando...' : 'Confirmar Importación'}
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 
