@@ -9,7 +9,7 @@ export const stripe = new Stripe(stripeSecretKey);
 // Definición de planes y límites
 export const PLANS = {
   BASIC: {
-    name: 'Básica',
+    name: 'Basic',
     limit: 6,
     monthlyProductId: 'prod_Un8zZdgvmqcuay',
     annualProductId: 'prod_Un91TCtSLN7pzx',
@@ -45,7 +45,7 @@ export function getPlanLimit(productId: string | null, subscriptionQuantity: num
 
 // Helper para obtener el nombre legible del plan
 export function getPlanName(productId: string | null): string {
-  if (!productId) return 'Básica (Por defecto)';
+  if (!productId) return 'Basic (Por defecto)';
   if (productId === PLANS.PRO.monthlyProductId || productId === PLANS.PRO.annualProductId) {
     return PLANS.PRO.name;
   }

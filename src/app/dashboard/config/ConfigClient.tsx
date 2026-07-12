@@ -287,11 +287,11 @@ export default function ConfigClient({
 
   // Helpers de cliente para mapeo de planes
   function getPlanNameClient(productId: string | null): string {
-    if (!productId) return 'Básica';
-    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 'Básica';
+    if (!productId) return 'Basic';
+    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 'Basic';
     if (productId === 'prod_UqIRZsZjb7aYTG') return 'Pro';
     if (productId === 'prod_UqIpPQX0ny7oOD') return 'Business';
-    return 'Básica';
+    return 'Basic';
   }
 
   const isPlanActive = (planName: 'basic' | 'pro' | 'business') => {
@@ -961,7 +961,7 @@ export default function ConfigClient({
                     </span>
                   )}
                   <div>
-                    <h4 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Plan Básica</h4>
+                    <h4 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Plan Basic</h4>
                     <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>Ideal para pequeñas empresas.</p>
                   </div>
                   <p style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-title)', margin: 0 }}>
@@ -991,7 +991,7 @@ export default function ConfigClient({
                     }}
                   >
                     {stripeLoading ? <Loader2 className="animate-spin" size={16} /> : null}
-                    {isPlanActive('basic') ? '✓ Plan Activo' : (hasActiveSubscription ? 'Cambiar a Básica' : 'Suscribirse')}
+                    {isPlanActive('basic') ? '✓ Plan Activo' : (hasActiveSubscription ? 'Cambiar a Basic' : 'Suscribirse')}
                   </button>
                 </div>
 
@@ -1088,7 +1088,7 @@ export default function ConfigClient({
 
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <li><strong>Hasta 49 empleados</strong> activos</li>
-                    <li>Todas las funciones del Plan Básica</li>
+                    <li>Todas las funciones del Plan Basic</li>
                     <li>Copias de seguridad automáticas</li>
                     <li>Configuración de festivos nacionales</li>
                     <li>Soporte prioritario por email</li>

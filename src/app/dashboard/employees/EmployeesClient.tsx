@@ -234,11 +234,11 @@ export default function EmployeesClient({
   };
 
   const getPlanNameClient = (productId: string | null) => {
-    if (!productId) return 'Básica';
-    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 'Básica';
+    if (!productId) return 'Basic';
+    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 'Basic';
     if (productId.includes('pro') || productId === 'prod_UqIRZsZjb7aYTG') return 'Pro';
     if (productId.includes('business') || productId === 'prod_UqIpPQX0ny7oOD') return 'Business';
-    return 'Básica';
+    return 'Basic';
   };
 
   // Abrir modal para crear
