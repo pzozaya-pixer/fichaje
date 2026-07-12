@@ -222,15 +222,15 @@ export default function EmployeesClient({
 
   // Helper local para calcular el límite de empleados
   const getPlanLimitClient = (productId: string | null, subscriptionQuantity: number | null) => {
-    if (!productId) return 10;
-    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 10;
+    if (!productId) return 6;
+    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 6;
     if (productId.includes('pro') || productId === 'prod_UqIRZsZjb7aYTG') {
-      return subscriptionQuantity ? Math.min(subscriptionQuantity, 50) : 10;
+      return subscriptionQuantity ? Math.min(subscriptionQuantity, 49) : 6;
     }
     if (productId.includes('business') || productId === 'prod_UqIpPQX0ny7oOD') {
       return subscriptionQuantity || Infinity;
     }
-    return 10;
+    return 6;
   };
 
   const getPlanNameClient = (productId: string | null) => {

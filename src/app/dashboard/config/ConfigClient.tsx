@@ -258,7 +258,7 @@ export default function ConfigClient({
   const [proQty, setProQty] = useState(
     subscription.stripeProductId === 'prod_UqIRZsZjb7aYTG' && subscription.subscriptionQuantity
       ? subscription.subscriptionQuantity
-      : Math.max(11, Math.min(50, activeEmployeesCount || 11))
+      : Math.max(7, Math.min(49, activeEmployeesCount || 7))
   );
 
   const [businessQty, setBusinessQty] = useState(
@@ -971,7 +971,7 @@ export default function ConfigClient({
                     </span>
                   </p>
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <li><strong>Hasta 10 empleados</strong> activos</li>
+                    <li><strong>Hasta 6 empleados</strong> activos</li>
                     <li>Control de jornada en tiempo real</li>
                     <li>Geolocalización GPS</li>
                     <li>Registro de ausencias y vacaciones</li>
@@ -1058,10 +1058,10 @@ export default function ConfigClient({
                     </label>
                     <input
                       type="number"
-                      min={11}
-                      max={50}
+                      min={7}
+                      max={49}
                       value={proQty}
-                      onChange={(e) => setProQty(Math.max(11, Math.min(50, parseInt(e.target.value) || 11)))}
+                      onChange={(e) => setProQty(Math.max(7, Math.min(49, parseInt(e.target.value) || 7)))}
                       disabled={hasActiveSubscription}
                       style={{
                         padding: '8px 12px',
@@ -1074,7 +1074,7 @@ export default function ConfigClient({
                       }}
                     />
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-                      Permite gestionar entre 11 y 50 empleados.
+                      Permite gestionar entre 7 y 49 empleados.
                     </p>
                   </div>
 
@@ -1087,7 +1087,7 @@ export default function ConfigClient({
                   </p>
 
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <li><strong>Hasta 50 empleados</strong> activos</li>
+                    <li><strong>Hasta 49 empleados</strong> activos</li>
                     <li>Todas las funciones del Plan Básica</li>
                     <li>Copias de seguridad automáticas</li>
                     <li>Configuración de festivos nacionales</li>

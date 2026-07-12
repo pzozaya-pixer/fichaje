@@ -10,13 +10,13 @@ export const stripe = new Stripe(stripeSecretKey);
 export const PLANS = {
   BASIC: {
     name: 'Básica',
-    limit: 10,
+    limit: 6,
     monthlyProductId: 'prod_Un8zZdgvmqcuay',
     annualProductId: 'prod_Un91TCtSLN7pzx',
   },
   PRO: {
     name: 'Pro',
-    limit: 50,
+    limit: 49,
     monthlyProductId: 'prod_UqIRZsZjb7aYTG',
     annualProductId: 'prod_UqIRZsZjb7aYTG',
   },
