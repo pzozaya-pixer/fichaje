@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { requestOtpAction, verifyOtpAction, registerCompanyAction } from './actions/auth';
-import { Clock, Mail, ShieldAlert, Loader2, Building, User, Phone } from 'lucide-react';
+import { Clock, Mail, ShieldAlert, Loader2, Building, User, Phone, Users } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginClient() {
@@ -20,6 +20,7 @@ export default function LoginClient() {
   // Estados para el formulario de registro
   const [companyName, setCompanyName] = useState('');
   const [cif, setCif] = useState('');
+  const [employees, setEmployees] = useState('');
   const [adminName, setAdminName] = useState('');
   const [phone, setPhone] = useState('');
   const [acceptedLegal, setAcceptedLegal] = useState(false);
@@ -34,6 +35,27 @@ export default function LoginClient() {
       }
     }
   }, []);
+
+  // Pre-rellenar formulario si viene desde la landing con parámetros de registro
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const emailParam = searchParams.get('email');
+    const companyParam = searchParams.get('companyName');
+    const cifParam = searchParams.get('cif');
+    const adminParam = searchParams.get('adminName');
+    const phoneParam = searchParams.get('phone');
+    const employeesParam = searchParams.get('employees');
+
+    if (tabParam === 'register' || emailParam || companyParam || cifParam || adminParam || employeesParam) {
+      setActiveTab('register');
+    }
+    if (emailParam) setEmail(emailParam);
+    if (companyParam) setCompanyName(companyParam);
+    if (cifParam) setCif(cifParam);
+    if (adminParam) setAdminName(adminParam);
+    if (phoneParam) setPhone(phoneParam);
+    if (employeesParam) setEmployees(employeesParam);
+  }, [searchParams]);
 
   const inputRefs = [
     useRef<HTMLInputElement>(null),
@@ -114,6 +136,7 @@ export default function LoginClient() {
         adminName,
         email,
         phone,
+        employees,
       });
 
       if (res.success) {
@@ -468,6 +491,33 @@ export default function LoginClient() {
                 onChange={(e) => setPhone(e.target.value)}
                 style={{ width: '100%', paddingLeft: '44px', backgroundColor: 'var(--pwa-bg-tertiary)', border: '1px solid var(--pwa-border)', color: 'white' }}
               />
+            </div>
+          </div>
+
+          {/* Número de Empleados */}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Número de Empleados *</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Users
+                size={18}
+                style={{
+                  position: 'absolute',
+                  left: '14px',
+                  color: 'var(--pwa-text-secondary)',
+                }}
+              />
+              <select
+                required
+                className="form-input"
+                value={employees}
+                onChange={(e) => setEmployees(e.target.value)}
+                style={{ width: '100%', paddingLeft: '44px', backgroundColor: 'var(--pwa-bg-tertiary)', border: '1px solid var(--pwa-border)', color: 'white', height: '42px' }}
+              >
+                <option value="" style={{ backgroundColor: 'var(--pwa-bg-secondary)' }}>Selecciona una opción</option>
+                <option value="1-5" style={{ backgroundColor: 'var(--pwa-bg-secondary)' }}>1 a 5 empleados</option>
+                <option value="6-49" style={{ backgroundColor: 'var(--pwa-bg-secondary)' }}>6 a 49 empleados</option>
+                <option value="50+" style={{ backgroundColor: 'var(--pwa-bg-secondary)' }}>50 empleados en adelante</option>
+              </select>
             </div>
           </div>
 

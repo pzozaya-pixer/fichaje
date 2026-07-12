@@ -57,11 +57,15 @@ export async function registerCompanyAction(data: {
   adminName: string;
   email: string;
   phone?: string;
+  employees?: string;
 }) {
   const email = data.email.toLowerCase().trim();
   const companyName = data.companyName.trim();
   const cif = data.cif.trim();
   const adminName = data.adminName.trim();
+  const employees = data.employees;
+
+  console.log(`Registro de empresa con tramo de empleados: ${employees || 'no especificado'}`);
 
   if (!email || !companyName || !cif || !adminName) {
     return { success: false, message: 'Todos los campos son obligatorios.' };
