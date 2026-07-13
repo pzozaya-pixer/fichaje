@@ -17,7 +17,7 @@ export default async function ExpiredPage() {
     if (user.role === 'ADMIN' || user.role === 'CONSULTANT') {
       redirect('/dashboard');
     } else {
-      redirect('/pwa');
+      redirect('/movil');
     }
   }
 

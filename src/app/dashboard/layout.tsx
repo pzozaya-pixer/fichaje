@@ -19,7 +19,7 @@ export default async function DashboardLayout({
 
   // Redirigir si es un empleado (los empleados solo acceden a la PWA)
   if (user.role === 'EMPLOYEE') {
-    redirect('/pwa');
+    redirect('/movil');
   }
 
   // Redirigir si el periodo de prueba o suscripción ha expirado

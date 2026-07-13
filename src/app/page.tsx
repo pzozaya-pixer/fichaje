@@ -10,7 +10,7 @@ export default async function LoginPage() {
     if (user.role === 'ADMIN' || user.role === 'CONSULTANT') {
       redirect('/dashboard');
     } else {
-      redirect('/pwa');
+      redirect('/movil');
     }
   }
 
