@@ -109,6 +109,14 @@ export default function ConfigClient({
 }: ConfigClientProps) {
   const searchParams = useSearchParams();
   
+  const getCentersLimit = (productId?: string | null) => {
+    if (!productId) return 1;
+    if (productId === 'prod_Un8zZdgvmqcuay' || productId === 'prod_Un91TCtSLN7pzx') return 1;
+    if (productId === 'prod_UqIRZsZjb7aYTG') return 2;
+    if (productId === 'prod_UqIpPQX0ny7oOD') return Infinity;
+    return 1;
+  };
+  
   const [webUrl, setWebUrl] = useState('https://app.fichaje.click/fichaje');
   const [movilUrl, setMovilUrl] = useState('https://app.fichaje.click/fichaje/movil/');
 
@@ -1579,10 +1587,23 @@ export default function ConfigClient({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <MapPin size={20} style={{ color: 'var(--primary)' }} />
-              <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>Centros de Trabajo y Geocercas</h3>
+              <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-title)', fontWeight: 600 }}>
+                Centros de Trabajo y Geocercas ({workCenters.length} / {getCentersLimit(subscription.stripeProductId) === Infinity ? 'Ilimitados' : getCentersLimit(subscription.stripeProductId)})
+              </h3>
             </div>
             {!isCenterFormOpen && (
-              <button onClick={handleOpenCenterCreate} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '13px' }}>
+              <button 
+                onClick={() => {
+                  const limit = getCentersLimit(subscription.stripeProductId);
+                  if (workCenters.length >= limit) {
+                    alert(`Límite de centros de trabajo alcanzado. Tu plan actual permite hasta ${limit} centro(s) de trabajo. Por favor, actualiza tu suscripción en Configuración para añadir más centros.`);
+                  } else {
+                    handleOpenCenterCreate();
+                  }
+                }} 
+                className="btn btn-secondary" 
+                style={{ padding: '6px 12px', fontSize: '13px' }}
+              >
                 <Plus size={14} />
                 Añadir Centro
               </button>
