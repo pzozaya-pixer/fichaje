@@ -5,7 +5,7 @@ import { getCurrentUser, generateOTP } from '@/lib/auth';
 import { Role, ContractType } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { stripe, getPlanLimit } from '@/lib/stripe';
+import { stripe, getPlanLimit, getPlanCentersLimit } from '@/lib/stripe';
 
 // Middleware interno para verificar si el usuario es Administrador
 async function checkAdmin() {
@@ -196,6 +196,25 @@ export async function saveWorkCenter(data: {
     revalidatePath('/dashboard/config');
     return result;
   } else {
+    const company = await prisma.company.findUnique({
+      where: { id: admin.companyId },
+    });
+
+    if (!company) {
+      throw new Error('Empresa no encontrada.');
+    }
+
+    const centersLimit = getPlanCentersLimit(company.stripeProductId);
+    const existingCentersCount = await prisma.workCenter.count({
+      where: { companyId: admin.companyId },
+    });
+
+    if (existingCentersCount >= centersLimit) {
+      throw new Error(
+        `Límite de centros de trabajo alcanzado. Tu plan actual permite hasta ${centersLimit} centro(s) de trabajo. Por favor, actualiza tu suscripción en Configuración para añadir más centros.`
+      );
+    }
+
     const result = await prisma.workCenter.create({
       data: centerData,
     });

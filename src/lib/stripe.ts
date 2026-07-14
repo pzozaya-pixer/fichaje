@@ -43,6 +43,21 @@ export function getPlanLimit(productId: string | null, subscriptionQuantity: num
   return PLANS.BASIC.limit; // Por defecto
 }
 
+// Helper para obtener el límite de centros de trabajo de un producto
+export function getPlanCentersLimit(productId: string | null): number {
+  if (!productId) return 1;
+  if (productId === PLANS.PRO.monthlyProductId || productId === PLANS.PRO.annualProductId) {
+    return 2;
+  }
+  if (productId === PLANS.BUSINESS.monthlyProductId || productId === PLANS.BUSINESS.annualProductId) {
+    return Infinity;
+  }
+  if (productId === PLANS.BASIC.monthlyProductId || productId === PLANS.BASIC.annualProductId) {
+    return 1;
+  }
+  return 1; // Por defecto
+}
+
 // Helper para obtener el nombre legible del plan
 export function getPlanName(productId: string | null): string {
   if (!productId) return 'Basic (Por defecto)';
