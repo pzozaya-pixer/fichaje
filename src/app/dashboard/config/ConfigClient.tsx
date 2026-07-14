@@ -980,6 +980,7 @@ export default function ConfigClient({
                   </p>
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <li><strong>Hasta 6 empleados</strong> activos</li>
+                    <li><strong>1 centro</strong> de trabajo</li>
                     <li>Control de jornada en tiempo real</li>
                     <li>Geolocalización GPS</li>
                     <li>Registro de ausencias y vacaciones</li>
@@ -1096,6 +1097,7 @@ export default function ConfigClient({
 
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <li><strong>Hasta 49 empleados</strong> activos</li>
+                    <li><strong>Hasta 2 centros</strong> de trabajo</li>
                     <li>Todas las funciones del Plan Basic</li>
                     <li>Copias de seguridad automáticas</li>
                     <li>Configuración de festivos nacionales</li>
@@ -1196,6 +1198,7 @@ export default function ConfigClient({
 
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <li><strong>De 50 empleados en adelante</strong></li>
+                    <li><strong>Centros de trabajo ilimitados</strong></li>
                     <li>Todas las funciones del Plan Pro</li>
                     <li>Exportación de backups automatizados</li>
                     <li>Asignación de múltiples administradores</li>
