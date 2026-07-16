@@ -710,9 +710,14 @@ export default function ConfigClient({
   const handleSubscribe = async (tier: 'basic' | 'pro' | 'business', period: 'monthly' | 'annual', quantity: number = 1) => {
     setStripeLoading(true);
     try {
-      await subscribeAction(companyId, companyEmail, tier, period, quantity);
+      const res = await subscribeAction(companyId, companyEmail, tier, period, quantity);
+      if (res.success && res.url) {
+        window.location.href = res.url;
+      } else {
+        alert(res.error || 'Error al iniciar suscripción de Stripe.');
+      }
     } catch (err: any) {
-      alert(err.message || 'Error al iniciar suscripción de Stripe.');
+      alert('Error de comunicación con el servidor.');
     } finally {
       setStripeLoading(false);
     }
@@ -721,9 +726,14 @@ export default function ConfigClient({
   const handleOpenBilling = async () => {
     setStripeLoading(true);
     try {
-      await openBillingPortalAction(companyId);
+      const res = await openBillingPortalAction(companyId);
+      if (res.success && res.url) {
+        window.location.href = res.url;
+      } else {
+        alert(res.error || 'Error al abrir el portal de facturación.');
+      }
     } catch (err: any) {
-      alert(err.message || 'Error al abrir el portal de facturación.');
+      alert('Error de comunicación con el servidor.');
     } finally {
       setStripeLoading(false);
     }

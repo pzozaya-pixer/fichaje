@@ -1,7 +1,6 @@
 'use server';
 
 import { createCheckoutSession, createPortalSession, stripe } from '@/lib/stripe';
-import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
@@ -13,27 +12,23 @@ export async function subscribeAction(
   period: 'monthly' | 'annual',
   quantity: number = 1
 ) {
-  let checkoutUrl: string;
   try {
-    checkoutUrl = await createCheckoutSession(companyId, email, tier, period, quantity);
-  } catch (error) {
+    const checkoutUrl = await createCheckoutSession(companyId, email, tier, period, quantity);
+    return { success: true, url: checkoutUrl };
+  } catch (error: any) {
     console.error('Error creando sesión de Stripe:', error);
-    throw new Error('No se pudo crear la sesión de pago de Stripe.');
+    return { success: false, error: error.message || 'No se pudo crear la sesión de pago de Stripe.' };
   }
-
-  redirect(checkoutUrl);
 }
 
 export async function openBillingPortalAction(companyId: string) {
-  let portalUrl: string;
   try {
-    portalUrl = await createPortalSession(companyId);
-  } catch (error) {
+    const portalUrl = await createPortalSession(companyId);
+    return { success: true, url: portalUrl };
+  } catch (error: any) {
     console.error('Error creando portal de facturación:', error);
-    throw new Error('No se pudo iniciar el portal de facturación.');
+    return { success: false, error: error.message || 'No se pudo iniciar el portal de facturación.' };
   }
-
-  redirect(portalUrl);
 }
 
 export async function cancelSubscriptionAction() {
