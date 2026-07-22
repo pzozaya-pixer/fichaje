@@ -12,6 +12,18 @@ interface TurnstileProps {
 export default function Turnstile({ siteKey, onVerify, onError, onExpire }: TurnstileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Guardar callbacks en referencias para evitar re-renderizados infinitos
+  const onVerifyRef = useRef(onVerify);
+  const onErrorRef = useRef(onError);
+  const onExpireRef = useRef(onExpire);
+
+  // Mantener las referencias sincronizadas con las funciones más recientes
+  useEffect(() => {
+    onVerifyRef.current = onVerify;
+    onErrorRef.current = onError;
+    onExpireRef.current = onExpire;
+  });
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -47,15 +59,15 @@ export default function Turnstile({ siteKey, onVerify, onError, onExpire }: Turn
             theme: 'dark',
             callback: (token: string) => {
               console.log('Turnstile: Token verificado en cliente.');
-              onVerify(token);
+              onVerifyRef.current(token);
             },
             'error-callback': () => {
               console.error('Turnstile: Error en el widget del cliente.');
-              if (onError) onError();
+              if (onErrorRef.current) onErrorRef.current();
             },
             'expired-callback': () => {
               console.warn('Turnstile: Token expirado en el cliente.');
-              if (onExpire) onExpire();
+              if (onExpireRef.current) onExpireRef.current();
             },
           });
         } catch (e) {
@@ -78,7 +90,7 @@ export default function Turnstile({ siteKey, onVerify, onError, onExpire }: Turn
         }
       }
     };
-  }, [siteKey, onVerify, onError, onExpire]);
+  }, [siteKey]);
 
   return (
     <div 
