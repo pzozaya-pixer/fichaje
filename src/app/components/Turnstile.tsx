@@ -15,9 +15,17 @@ export default function Turnstile({ siteKey, onVerify, onError, onExpire }: Turn
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Detectar si estamos en desarrollo local y usar la clave de prueba de Cloudflare en su lugar
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // Detectar si estamos en desarrollo local o red local y usar la clave de prueba de Cloudflare en su lugar
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || 
+                        hostname === '127.0.0.1' || 
+                        hostname.endsWith('.local') || 
+                        hostname.startsWith('192.168.') || 
+                        hostname.startsWith('10.') || 
+                        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname);
     const activeSiteKey = isLocalhost ? '1x00000000000000000000AA' : siteKey;
+
+    console.log(`Turnstile: Renderizando widget para el host "${hostname}" (isLocalhost=${isLocalhost}). Usando sitekey: ${activeSiteKey}`);
 
     // Cargar script de Turnstile si no se ha cargado ya
     if (!document.getElementById('cloudflare-turnstile-script')) {
@@ -37,9 +45,18 @@ export default function Turnstile({ siteKey, onVerify, onError, onExpire }: Turn
           widgetId = (window as any).turnstile.render(containerRef.current, {
             sitekey: activeSiteKey,
             theme: 'dark',
-            callback: onVerify,
-            'error-callback': onError,
-            'expired-callback': onExpire,
+            callback: (token: string) => {
+              console.log('Turnstile: Token verificado en cliente.');
+              onVerify(token);
+            },
+            'error-callback': () => {
+              console.error('Turnstile: Error en el widget del cliente.');
+              if (onError) onError();
+            },
+            'expired-callback': () => {
+              console.warn('Turnstile: Token expirado en el cliente.');
+              if (onExpire) onExpire();
+            },
           });
         } catch (e) {
           console.error('Error rendering Turnstile widget:', e);
