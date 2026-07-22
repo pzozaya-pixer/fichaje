@@ -345,8 +345,8 @@ export default function ExpiredClient({ company, isAdmin, activeEmployeesCount, 
                 <li>Empleados <strong>ilimitados</strong></li>
                 <li>Centros de trabajo <strong>ilimitados</strong></li>
                 <li>Todas las funciones del Plan Pro</li>
-                <li>API de integración y backups auto</li>
-                <li>Soporte 24/7 y asistencia telefónica</li>
+                <li>Backups automáticos</li>
+                <li>Soporte 24/7</li>
               </ul>
 
               <button

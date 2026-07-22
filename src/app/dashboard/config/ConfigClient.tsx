@@ -1212,7 +1212,7 @@ export default function ConfigClient({
                     <li>Todas las funciones del Plan Pro</li>
                     <li>Exportación de backups automatizados</li>
                     <li>Asignación de múltiples administradores</li>
-                    <li>Soporte 24/7 y asistencia telefónica</li>
+                    <li>Soporte 24/7</li>
                   </ul>
                   <button
                     disabled={stripeLoading}
