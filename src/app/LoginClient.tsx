@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { requestOtpAction, verifyOtpAction, registerCompanyAction } from './actions/auth';
 import { Clock, Mail, ShieldAlert, Loader2, Building, User, Phone, Users } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Turnstile from './components/Turnstile';
 
 export default function LoginClient() {
   const router = useRouter();
@@ -25,6 +26,16 @@ export default function LoginClient() {
   const [phone, setPhone] = useState('');
   const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [currentLegalDoc, setCurrentLegalDoc] = useState<string | null>(null);
+
+  // Estados para tokens de Cloudflare Turnstile
+  const [loginTurnstileToken, setLoginTurnstileToken] = useState<string | null>(null);
+  const [registerTurnstileToken, setRegisterTurnstileToken] = useState<string | null>(null);
+
+  // Limpiar tokens al cambiar de pestaña
+  useEffect(() => {
+    setLoginTurnstileToken(null);
+    setRegisterTurnstileToken(null);
+  }, [activeTab]);
 
   // Cargar el correo guardado en el dispositivo al iniciar
   useEffect(() => {
@@ -137,6 +148,7 @@ export default function LoginClient() {
         email,
         phone,
         employees,
+        turnstileToken: registerTurnstileToken || undefined,
       });
 
       if (res.success) {
@@ -361,7 +373,16 @@ export default function LoginClient() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="login-submit-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+            <Turnstile
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              onVerify={setLoginTurnstileToken}
+              onExpire={() => setLoginTurnstileToken(null)}
+              onError={() => setLoginTurnstileToken(null)}
+            />
+          )}
+
+          <button type="submit" disabled={loading || !loginTurnstileToken} className="login-submit-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
             {loading ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
@@ -556,7 +577,16 @@ export default function LoginClient() {
             </label>
           </div>
 
-          <button type="submit" disabled={loading} className="login-submit-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '8px' }}>
+          {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+            <Turnstile
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              onVerify={setRegisterTurnstileToken}
+              onExpire={() => setRegisterTurnstileToken(null)}
+              onError={() => setRegisterTurnstileToken(null)}
+            />
+          )}
+
+          <button type="submit" disabled={loading || !registerTurnstileToken} className="login-submit-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '8px' }}>
             {loading ? (
               <>
                 <Loader2 className="animate-spin" size={18} />

@@ -4,6 +4,37 @@ import { sendOTP, verifyOTP, logout, loginWithoutOTP } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
+async function verifyTurnstileToken(token: string | null): Promise<boolean> {
+  const secretKey = process.env.TURNSTILE_SECRET_KEY;
+  if (!secretKey) {
+    console.warn('TURNSTILE_SECRET_KEY no está configurada. Saltando verificación de Turnstile.');
+    return true;
+  }
+
+  if (!token) {
+    return false;
+  }
+
+  try {
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        secret: secretKey,
+        response: token,
+      }),
+    });
+
+    const data = await response.json();
+    return !!data.success;
+  } catch (error) {
+    console.error('Error al verificar el token de Turnstile:', error);
+    return false;
+  }
+}
+
 export async function requestOtpAction(prevState: any, formData: FormData): Promise<{
   success: boolean;
   message?: string;
@@ -11,9 +42,16 @@ export async function requestOtpAction(prevState: any, formData: FormData): Prom
   role?: string;
 }> {
   const email = formData.get('email') as string;
+  const turnstileToken = formData.get('cf-turnstile-response') as string;
 
   if (!email) {
     return { success: false, message: 'El correo electrónico es obligatorio.' };
+  }
+
+  // Verificar Turnstile
+  const isHuman = await verifyTurnstileToken(turnstileToken);
+  if (!isHuman) {
+    return { success: false, message: 'La verificación de seguridad de Turnstile falló. Inténtalo de nuevo.' };
   }
 
   // Intentar iniciar sesión inmediatamente sin OTP para usuarios registrados
@@ -58,17 +96,25 @@ export async function registerCompanyAction(data: {
   email: string;
   phone?: string;
   employees?: string;
+  turnstileToken?: string;
 }) {
   const email = data.email.toLowerCase().trim();
   const companyName = data.companyName.trim();
   const cif = data.cif.trim();
   const adminName = data.adminName.trim();
   const employees = data.employees;
+  const turnstileToken = data.turnstileToken;
 
   console.log(`Registro de empresa con tramo de empleados: ${employees || 'no especificado'}`);
 
   if (!email || !companyName || !cif || !adminName) {
     return { success: false, message: 'Todos los campos son obligatorios.' };
+  }
+
+  // Verificar Turnstile
+  const isHuman = await verifyTurnstileToken(turnstileToken || null);
+  if (!isHuman) {
+    return { success: false, message: 'La verificación de seguridad de Turnstile falló. Inténtalo de nuevo.' };
   }
 
   try {
